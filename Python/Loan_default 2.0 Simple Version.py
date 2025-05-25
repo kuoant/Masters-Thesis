@@ -73,6 +73,8 @@ df_small = df_small.sample(frac=1, random_state=42).reset_index(drop=True)
 df = df.drop(columns=['LoanID'])
 df_small = df_small.drop(columns=['LoanID'])
 
+df_small.to_csv("df_small_sampled.csv", index=False)
+
 # Check resultss
 print(df['Default'].value_counts())
 print(f"Total samples: {len(df)}")
@@ -114,8 +116,6 @@ X_test_scaled[numerical_columns] = scaler.transform(X_test[numerical_columns])
 #====================================================================================================================
 #====================================================================================================================
 #%%
-
-
 
 X_train_subset = X_train_scaled[:10000]
 y_train_subset = y_train[:10000]
@@ -729,10 +729,6 @@ plt.ylabel("True")
 plt.show()
 
 
-
-
-
-
 #%% Neural Network (MLP)
 
 from sklearn.neural_network import MLPClassifier
@@ -761,17 +757,4 @@ plt.show()
 
 # Classification report
 print(classification_report(y_test, y_pred_mlp))
-
-
-
-
-# %%
-
-
-
-
-
-
-
-
 
