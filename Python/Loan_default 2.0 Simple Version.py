@@ -733,176 +733,6 @@ plt.show()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#============================================================================
-#============================================================================
-#============================================================================
-# XGBoost, Isolation Forest, MLP
-#============================================================================
-#============================================================================
-#============================================================================
-
-
-#%% XGBoost
-
-# Create DMatrix for XGBoost
-dtrain = xgb.DMatrix(X_train_scaled, label=y_train)
-dtest = xgb.DMatrix(X_test_scaled, label=y_test)
-
-# Define parameters and train the model
-params = {
-    "objective": "binary:logistic", 
-    "eval_metric": "logloss",
-    "use_label_encoder": False
-}
-
-bst = xgb.train(params, dtrain, num_boost_round=100)
-
-# Prediction
-y_pred_prob = bst.predict(dtest)
-y_pred = (y_pred_prob > 0.5).astype(int) 
-
-# Confusion Matrix
-cm = confusion_matrix(y_test, y_pred)
-
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Pred: 0", "Pred: 1"], yticklabels=["True: 0", "True: 1"])
-plt.xlabel('Predicted')
-plt.ylabel('True')
-plt.title('Confusion Matrix')
-plt.show()
-
-# Classification report
-print(classification_report(y_test, y_pred))
-
-
-
-#%% SHAP Values
-
-# Create an explainer using the trained booster and the training data
-explainer = shap.Explainer(bst)
-
-# Compute SHAP values for the test set
-shap_values = explainer(dtest)
-
-# Plot summary plot (beeswarm) of SHAP values
-shap.summary_plot(shap_values, features=X_test_scaled, feature_names=X_test_scaled.columns)
-
-# Plot SHAP values for a single instance (e.g., the first test sample)
-sample_obs = 0
-shap.plots.waterfall(shap_values[sample_obs])
-print(X_test.iloc[sample_obs], "\nLabel: ", y_test[sample_obs])
-
-# XGBoost built-in feature importance plot
-ax = xgb.plot_importance(bst, max_num_features=10, importance_type='gain', xlabel='Gain')
-plt.ylabel("")
-plt.title('XGBoost Feature Importance')
-
-for txt in ax.texts:
-    txt.set_visible(False)
-
-plt.show()
-
-# Extract SHAP values array
-shap_vals_array = shap_values.values
-
-# Indices
-wrong_idx = np.where(y_pred != y_test)[0]
-correct_idx = np.where(y_pred == y_test)[0]
-
-# Mean abs SHAP for wrong and correct
-mean_abs_wrong = np.abs(shap_vals_array[wrong_idx]).mean(axis=0)
-mean_abs_correct = np.abs(shap_vals_array[correct_idx]).mean(axis=0)
-
-# Difference
-diff = mean_abs_wrong - mean_abs_correct
-
-feature_names = X_test.columns if hasattr(X_test, 'columns') else [f'Feature {i}' for i in range(diff.shape[0])]
-diff_series = pd.Series(diff, index=feature_names).sort_values(ascending=False)
-
-print("Features with higher impact on wrong predictions (compared to correct):")
-print(diff_series.head(10))
-
-# Plot
-diff_series.plot(kind='barh')
-plt.xlabel('Mean |SHAP value| difference (wrong - correct)')
-plt.title('Features Driving Wrong Predictions Differently')
-plt.gca().invert_yaxis()
-plt.show()
-
-
-# Use iloc for positional indexing
-interest_wrong = X_test.iloc[wrong_idx]['InterestRate']
-interest_correct = X_test.iloc[correct_idx]['InterestRate']
-
-# Plot distributions
-plt.figure(figsize=(10, 6))
-sns.kdeplot(interest_correct, label='Correct Predictions', shade=True)
-sns.kdeplot(interest_wrong, label='Wrong Predictions', shade=True)
-plt.title('InterestRate Distribution: Correct vs Wrong Predictions')
-plt.xlabel('InterestRate')
-plt.ylabel('Density')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# Statistical test for distribution difference
-stat, p_value = ks_2samp(interest_correct, interest_wrong)
-print(f"KS-test statistic: {stat:.4f}, p-value: {p_value:.4f}")
-
-if p_value < 0.05:
-    print("The distributions of InterestRate between wrong and correct predictions are significantly different.")
-else:
-    print("No significant difference detected between the InterestRate distributions for wrong and correct predictions.")
-
-
-# %% Isolation Forest
-
-from sklearn.ensemble import IsolationForest
-
-# Train Isolation Forest model
-iso_forest = IsolationForest(contamination=0.3, random_state=42)  # contamination should be roughly the fraction of outliers
-iso_forest.fit(X_train_scaled)
-
-# Prediction
-y_pred = iso_forest.predict(X_test_scaled)
-
-# Mapping
-y_pred = (y_pred == -1).astype(int)  # Outliers (-1) are predicted as "default" (1), and inliers (1) as "not default" (0)
-
-# Confusion matrix
-cm = confusion_matrix(y_test, y_pred)
-
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Pred: 0", "Pred: 1"], yticklabels=["True: 0", "True: 1"])
-plt.xlabel('Predicted')
-plt.ylabel('True')
-plt.title('Confusion Matrix')
-plt.show()
-
-# Classification report
-print(classification_report(y_test, y_pred))
-
-
-
 #%% Neural Network (MLP)
 
 from sklearn.neural_network import MLPClassifier
@@ -931,6 +761,16 @@ plt.show()
 
 # Classification report
 print(classification_report(y_test, y_pred_mlp))
+
+
+
+
+# %%
+
+
+
+
+
 
 
 
