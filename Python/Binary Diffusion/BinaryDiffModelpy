@@ -1,0 +1,130 @@
+#%%
+import pandas as pd
+from collections import defaultdict
+
+from binary_diffusion_tabular import (
+    FixedSizeBinaryTableDataset, 
+    SimpleTableGenerator, 
+    BinaryDiffusion1D, 
+    FixedSizeTableBinaryDiffusionTrainer,
+    drop_fill_na
+)
+
+class SimpleLogger:
+    def log(self, log_dict):
+        print(", ".join([f"{k}: {v:.4f}" for k,v in log_dict.items()]))
+
+if __name__ == "__main__":
+    # Load your CSV file
+    df = pd.read_csv("df_small_sampled.csv")
+
+    columns_numerical = [
+        "Age",
+        "Income",
+        "LoanAmount",
+        "CreditScore",
+        "MonthsEmployed",
+        "NumCreditLines",
+        "InterestRate",
+        "LoanTerm",
+        "DTIRatio"
+    ]
+
+    columns_categorical = [
+        "Education",
+        "EmploymentType",
+        "MaritalStatus",
+        "HasMortgage",
+        "HasDependents",
+        "LoanPurpose",
+        "HasCoSigner"
+    ]
+
+    task = "classification"
+    column_target = "Default"  # target variable in your CSV
+
+    df = drop_fill_na(
+        df=df,
+        columns_numerical=columns_numerical,
+        columns_categorical=columns_categorical,
+        dropna=True,
+        fillna=False
+    )
+
+    dataset = FixedSizeBinaryTableDataset(
+        table=df,
+        target_column=column_target,
+        split_feature_target=True,
+        task=task,
+        numerical_columns=columns_numerical,
+        categorical_columns=columns_categorical
+    )
+
+    classifier_free_guidance = True
+    target_diffusion = "two_way"
+
+    # Smaller model parameters for faster training:
+    dim = 64               # smaller embedding dimension (was 256)
+    n_res_blocks = 1       # fewer residual blocks (was 3)
+    device = "cpu"         # or "cuda" if available
+
+    model = SimpleTableGenerator(
+        data_dim=dataset.row_size,
+        dim=dim,
+        n_res_blocks=n_res_blocks,
+        out_dim=(
+            dataset.row_size * 2
+            if target_diffusion == "two_way"
+            else dataset.row_size
+        ),
+        task=task,
+        conditional=dataset.conditional,
+        n_classes=0 if task == "regression" else dataset.n_classes,
+        classifier_free_guidance=classifier_free_guidance,
+    ).to(device)
+
+    n_timesteps = 200  # reduce diffusion timesteps from 1000 to 200
+
+    diffusion = BinaryDiffusion1D(
+        denoise_model=model,
+        schedule="quad",
+        n_timesteps=n_timesteps,
+        target=target_diffusion
+    ).to(device)
+
+    num_training_steps = 10_000  # smaller number of training steps for fast iteration
+    log_every = 100
+    save_every = 2_000
+    save_num_samples = 32
+    ema_decay = 0.995
+    ema_update_every = 10
+    lr = 1e-4
+    opt_type = "adam"
+    batch_size = 128   # smaller batch size to reduce memory usage
+    n_workers = 0      # Set to 0 to avoid broken pipe errors
+    zero_token_probability = 0.1
+    results_folder = "./results/adult_CFG_small"
+
+    trainer = FixedSizeTableBinaryDiffusionTrainer(
+        diffusion=diffusion,
+        dataset=dataset,
+        train_num_steps=num_training_steps,
+        log_every=log_every,
+        save_every=save_every,
+        save_num_samples=save_num_samples,
+        max_grad_norm=None,
+        gradient_accumulate_every=1,
+        ema_decay=ema_decay,
+        ema_update_every=ema_update_every,
+        lr=lr,
+        opt_type=opt_type,
+        batch_size=batch_size,
+        dataloader_workers=n_workers,
+        classifier_free_guidance=classifier_free_guidance,
+        zero_token_probability=zero_token_probability,
+        logger=SimpleLogger(),
+        results_folder=results_folder
+    )
+
+    trainer.train()
+# %%
