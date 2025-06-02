@@ -27,6 +27,8 @@ from xgboost import XGBClassifier
 #%% Artificial Data Generation based on Karate Club Data Set
 #=================================================================================================
 
+np.random.seed(42)
+
 # Generate the graph with 2 groups
 sizes = [50, 50]
 p_in, p_out = 0.1, 0.002
@@ -80,6 +82,7 @@ pd.DataFrame(df)
 #%% XGBoost
 #=================================================================================================
 
+np.random.seed(42)
 
 # Final feature matrix: random features + adjacency matrix
 X = np.hstack([X_random, A])
@@ -113,6 +116,7 @@ plt.show()
 # %% Plot the Observation
 #=================================================================================================
 
+np.random.seed(42)
 
 # Color nodes by their group label (0 or 1)
 colors = ['skyblue' if label == 0 else 'lightcoral' for label in labels]
@@ -131,6 +135,7 @@ plt.show()
 #%% Some Data Preprocessing to make sure 
 #=================================================================================================
 
+np.random.seed(42)
 
 n_nodes = 100
 
@@ -170,6 +175,7 @@ data.edge_index = edge_index
 #%% GraphSAGE
 #=================================================================================================
 
+np.random.seed(42)
 
 # GraphSAGE model definition
 class GraphSAGE(torch.nn.Module):
@@ -246,8 +252,11 @@ plt.show()
 
 
 
-# %%
+#=================================================================================================
+#%% Embeddings for XGBoost
+#=================================================================================================
 
+np.random.seed(42)
 
 # Get embeddings
 embeddings = model.get_embeddings(data.x, data.edge_index)
@@ -282,6 +291,3 @@ plt.title("XGBoost on GraphSAGE Embeddings")
 plt.show()
 
 
-
-
-# %%
