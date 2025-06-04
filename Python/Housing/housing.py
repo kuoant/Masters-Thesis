@@ -155,7 +155,13 @@ print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_combined)):.2f}")
 
 
 
-# %%
+
+
+
+
+
+#%% Visualize Embeddings
+
 
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
@@ -239,6 +245,142 @@ import plotly.io as pio
 pio.renderers.default = 'browser'
 fig.show()
 
+
+# %%
+
+import seaborn as sns
+
+coefficients = linreg_combined.coef_
+n_features = graph_data.x.shape[1]
+embedding_coefs = coefficients[n_features:]  # Last dims correspond to embeddings
+
+plt.figure(figsize=(8, 4))
+sns.barplot(x=np.arange(len(embedding_coefs)), y=embedding_coefs)
+plt.xlabel("Embedding Dimension")
+plt.ylabel("Coefficient")
+plt.title("Linear Model Coefficients for GNN Embeddings")
+plt.grid(True)
+plt.show()
+
+# %%
+
+from sklearn.metrics import mean_squared_error
+
+baseline_rmse = np.sqrt(mean_squared_error(y_test, y_pred_combined))
+importances = []
+
+for i in range(embeddings.shape[1]):
+    X_temp = X_test_combined.copy()
+    np.random.shuffle(X_temp[:, graph_data.x.shape[1] + i])  # shuffle one embedding dim
+    y_temp_pred = linreg_combined.predict(X_temp)
+    rmse = np.sqrt(mean_squared_error(y_test, y_temp_pred))
+    importances.append(rmse - baseline_rmse)
+
+plt.figure(figsize=(8, 4))
+sns.barplot(x=np.arange(len(importances)), y=importances)
+plt.xlabel("Embedding Dimension")
+plt.ylabel("RMSE Increase")
+plt.title("Permutation Importance of Embedding Dimensions")
+plt.grid(True)
+plt.show()
+
+# %%
+
+from sklearn.manifold import TSNE
+
+tsne = TSNE(n_components=2, random_state=SEED)
+embed_2d = tsne.fit_transform(embeddings.numpy())
+
+plt.figure(figsize=(8, 6))
+plt.scatter(embed_2d[:, 0], embed_2d[:, 1], c=graph_data.y.numpy(), cmap='viridis', s=50, edgecolor='k', alpha=0.7)
+plt.colorbar(label='Median House Value')
+plt.title('t-SNE Projection of Node Embeddings')
+plt.grid(True)
+plt.show()
+
+# %%
+
+from sklearn.cross_decomposition import CCA
+
+cca = CCA(n_components=3)
+X_orig_std = StandardScaler().fit_transform(graph_data.x.numpy())
+Y_embed_std = StandardScaler().fit_transform(embeddings.numpy())
+
+cca.fit(X_orig_std, Y_embed_std)
+X_c, Y_c = cca.transform(X_orig_std, Y_embed_std)
+
+corrs = [np.corrcoef(X_c[:, i], Y_c[:, i])[0, 1] for i in range(3)]
+print("Canonical correlations:", corrs)
+
+
+# %%
+
+import statsmodels.api as sm
+
+# For original features
+X_train_sm = sm.add_constant(X_train)  # adds intercept term
+model_orig = sm.OLS(y_train, X_train_sm).fit()
+print("\nLinear Regression Summary (Original Features):")
+print(model_orig.summary())
+
+# For combined features (original + embeddings)
+X_train_comb_sm = sm.add_constant(X_train_combined)
+model_combined = sm.OLS(y_train, X_train_comb_sm).fit()
+print("\nLinear Regression Summary (Combined Features):")
+print(model_combined.summary())
+
+
+
+
+# %%
+from sklearn.decomposition import PCA
+import statsmodels.api as sm
+from sklearn.metrics import r2_score, mean_squared_error
+
+# Get embeddings from trained model
+model.eval()
+with torch.no_grad():
+    embeddings, _ = model(graph_data.x, graph_data.edge_index)
+    emb_np = embeddings.numpy()
+
+# PCA with 1 component (PC1 only)
+pca = PCA(n_components=1)
+emb_pca = pca.fit_transform(emb_np)
+
+# Split train/test
+X_train_pca = emb_pca[graph_data.train_mask.numpy()]
+X_test_pca = emb_pca[graph_data.test_mask.numpy()]
+y_train = graph_data.y[graph_data.train_mask].numpy()
+y_test = graph_data.y[graph_data.test_mask].numpy()
+
+# Add intercept for statsmodels OLS
+X_train_pca_sm = sm.add_constant(X_train_pca)
+model_pca = sm.OLS(y_train, X_train_pca_sm).fit()
+
+# Predict on test set
+X_test_pca_sm = sm.add_constant(X_test_pca)
+y_pred_pca = model_pca.predict(X_test_pca_sm)
+
+# Output summary & metrics
+print("\nLinear Regression Summary (Using PC1 from embeddings):")
+print(model_pca.summary())
+print(f"\nR² score: {r2_score(y_test, y_pred_pca):.4f}")
+print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_pca)):.2f}")
+
+# %%
+
+import matplotlib.pyplot as plt
+
+# Assuming emb_pca from previous step (PC1 values)
+pc1 = emb_pca.squeeze()  # shape (n_samples,)
+
+plt.figure(figsize=(10, 6))
+plt.scatter(pc1, graph_data.y.numpy(), alpha=0.6, edgecolor='k')
+plt.xlabel('PC1 from Embeddings')
+plt.ylabel('Median House Value')
+plt.title('PC1 vs Median House Value')
+plt.grid(True)
+plt.show()
 
 
 # %%
