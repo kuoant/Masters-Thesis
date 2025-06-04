@@ -153,4 +153,92 @@ print("\nLinear Regression on Combined Features (Original + Embeddings):")
 print(f"R² score: {r2_score(y_test, y_pred_combined):.4f}")
 print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_combined)):.2f}")
 
+
+
+# %%
+
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+embeddings_np = embeddings.numpy()
+
+inertia = []
+K_range = range(1, 15)  # Check clusters from 1 to 14
+
+for k in K_range:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(embeddings_np)
+    inertia.append(kmeans.inertia_)
+
+plt.figure(figsize=(8, 5))
+plt.plot(K_range, inertia, 'bo-')
+plt.xlabel('Number of clusters (k)')
+plt.ylabel('Inertia (Sum of squared distances)')
+plt.title('Elbow Plot for KMeans Clustering on Embeddings')
+plt.xticks(K_range)
+plt.grid(True)
+plt.show()
+
+
+# %%
+
+
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (needed for 3d projection)
+
+embeddings_np = embeddings.numpy()
+targets = graph_data.y.numpy()
+
+# PCA to reduce embeddings to 3 dimensions
+pca = PCA(n_components=3)
+embeddings_3d = pca.fit_transform(embeddings_np)
+
+# 3D scatter plot
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+
+sc = ax.scatter(
+    embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2],
+    c=targets, cmap='viridis', alpha=0.7
+)
+
+ax.set_title('3D PCA of GraphSAGE Embeddings')
+ax.set_xlabel('PC1')
+ax.set_ylabel('PC2')
+ax.set_zlabel('PC3')
+
+fig.colorbar(sc, ax=ax, label='Median House Value')
+plt.show()
+
+
+# %%
+
+import plotly.express as px
+from sklearn.decomposition import PCA
+
+embeddings_np = embeddings.numpy()
+targets = graph_data.y.numpy()
+
+# Reduce to 3D using PCA
+pca = PCA(n_components=3)
+embeddings_3d = pca.fit_transform(embeddings_np)
+
+# Create interactive 3D scatter plot
+fig = px.scatter_3d(
+    x=embeddings_3d[:, 0],
+    y=embeddings_3d[:, 1],
+    z=embeddings_3d[:, 2],
+    color=targets,
+    labels={'x': 'PC1', 'y': 'PC2', 'z': 'PC3'},
+    title='Interactive 3D PCA of GraphSAGE Embeddings',
+    opacity=0.7,
+    color_continuous_scale='Viridis'
+)
+import plotly.io as pio
+pio.renderers.default = 'browser'
+fig.show()
+
+
+
 # %%
