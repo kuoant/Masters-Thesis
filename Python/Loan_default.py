@@ -7,6 +7,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from scipy.stats import ks_2samp
 from sklearn.utils import resample
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -50,7 +51,7 @@ for col in categorical_columns:
     df[col] = label_encoder.fit_transform(df[col])
 
 # Split features and target variables
-X = df.drop(columns=["Default"])    # Features (excluding target)
+X = df.drop(columns=["Default"])    # Features excluding target
 y = df["Default"]                   # Target variable
 
 # Train-test split
@@ -70,6 +71,20 @@ X_test_scaled[numerical_columns] = scaler.transform(X_test[numerical_columns])
 
 
 
+
+
+
+
+
+
+
+#============================================================================
+#============================================================================
+#============================================================================
+# XGBoost, Isolation Forest, MLP
+#============================================================================
+#============================================================================
+#============================================================================
 
 
 #%% XGBoost
@@ -108,7 +123,8 @@ plt.show()
 print(classification_report(y_test, y_pred))
 
 
-#%% Shape
+
+#%% SHAP Values
 
 # Create an explainer using the trained booster and the training data
 explainer = shap.Explainer(bst)
@@ -162,10 +178,6 @@ plt.gca().invert_yaxis()
 plt.show()
 
 
-#%%
-
-from scipy.stats import ks_2samp
-
 # Use iloc for positional indexing
 interest_wrong = X_test.iloc[wrong_idx]['InterestRate']
 interest_correct = X_test.iloc[correct_idx]['InterestRate']
@@ -189,17 +201,6 @@ if p_value < 0.05:
     print("The distributions of InterestRate between wrong and correct predictions are significantly different.")
 else:
     print("No significant difference detected between the InterestRate distributions for wrong and correct predictions.")
-
-
-
-
-
-
-
-
-
-
-
 
 
 # %% Isolation Forest
@@ -228,370 +229,6 @@ plt.show()
 
 # Classification report
 print(classification_report(y_test, y_pred))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#%%  Bayesian Logistic Regression Using NUTS
-
-import pymc as pm
-
-X_train_subset = X_train_scaled[:8000]
-y_train_subset = y_train[:8000]
-
-
-with pm.Model() as bayesian_model:
-    # Priors on parameters (use moderately informative priors)
-    beta_0              = pm.Normal('beta_0', mu=0, sigma=10)
-    beta_age            = pm.Normal('beta_age', mu=0, sigma=10)
-    beta_income         = pm.Normal('beta_income', mu=0, sigma=10)
-    beta_loanAmount     = pm.Normal('beta_loanAmount', mu=0, sigma=10)
-    beta_creditScore    = pm.Normal('beta_creditScore', mu=0, sigma=10)
-    # beta_monthsEmployed = pm.Normal('beta_monthsEmployed', mu=0, sigma=10)
-    # beta_numCreditLines = pm.Normal('beta_numCreditLines', mu=0, sigma=10)
-    beta_interestRate   = pm.Normal('beta_interestRate', mu=0, sigma=10)
-    # beta_loanTerm       = pm.Normal('beta_loanTerm', mu=0, sigma=10)
-    # beta_DTIRatio       = pm.Normal('beta_DTIRatio', mu=0, sigma=10)
-    # beta_Education      = pm.Normal('beta_Education', mu=0, sigma=10)
-    # beta_EmploymentType = pm.Normal('beta_EmploymentType', mu=0, sigma=10)
-    # beta_MaritalStatus  = pm.Normal('beta_MaritalStatus', mu=0, sigma=10)
-    # beta_HasMortgage    = pm.Normal('beta_HasMortgage', mu=0, sigma=10)
-    # beta_HasDependents  = pm.Normal('beta_HasDependents', mu=0, sigma=10)
-    # beta_LoanPurpose    = pm.Normal('beta_LoanPurpose', mu=0, sigma=10)
-    # beta_HasCoSigner    = pm.Normal('beta_HasCoSigner', mu=0, sigma=10)
-
-    # Logistic regression
-    linear_combination = (
-        beta_0 +
-        beta_age             * X_train_subset['Age']+
-        beta_income          * X_train_subset['Income']+
-        beta_loanAmount      * X_train_subset['LoanAmount']+
-        beta_creditScore     * X_train_subset['CreditScore']+
-        # beta_monthsEmployed  * X_train_subset['MonthsEmployed'] +
-        # beta_numCreditLines  * X_train_subset['NumCreditLines'] +
-        beta_interestRate    * X_train_subset['InterestRate']
-        # beta_loanTerm        * X_train_subset['LoanTerm'] +
-        # beta_DTIRatio        * X_train_subset['DTIRatio'] +
-        # beta_Education       * X_train_subset['Education'] +
-        # beta_EmploymentType  * X_train_subset['EmploymentType'] +
-        # beta_MaritalStatus   * X_train_subset['MaritalStatus'] +
-        # beta_HasMortgage     * X_train_subset['HasMortgage'] +
-        # beta_HasDependents   * X_train_subset['HasDependents'] +
-        # beta_LoanPurpose     * X_train_subset['LoanPurpose'] + 
-        # beta_HasCoSigner     * X_train_subset['HasCoSigner']
-    )
-
-    # Probability of default
-    p = pm.Deterministic('p', pm.math.sigmoid(linear_combination))
-
-    # Likelihood
-    observed = pm.Bernoulli('LoanDefault', p=p, observed=y_train_subset)
-
-    # Inference using NUTS (no need for find_MAP or step definition)
-    trace = pm.sample(draws=6000, tune=2000, target_accept=0.95, cores=1, chains=4)
-
-
-# %%
-
-az.plot_trace(trace, var_names=["beta_0", "beta_age", "beta_income", "beta_loanAmount", "beta_creditScore", "beta_interestRate"])
-plt.show()
-
-az.plot_posterior(trace, var_names=["beta_0", "beta_age", "beta_income", "beta_loanAmount", "beta_creditScore", "beta_interestRate"])
-plt.show()
-
-
-plt.figure(figsize=(12.5, 12.5))
-
-sns.jointplot(
-    x=trace.posterior["beta_age"].values.flatten(), 
-    y=trace.posterior["beta_loanAmount"].values.flatten(), 
-    kind="hex", 
-    color="#4CB391"
-)
-
-plt.xlabel("beta_age")
-plt.ylabel("beta_loanAmount")
-plt.show()
-
-# %%
-
-# Extract the posterior samples for p
-p_samples = trace.posterior['p'].values  
-
-# Reshape to (samples, observations)
-p_samples_reshaped = p_samples.reshape(-1, p_samples.shape[-1])
-
-# Compute the average predicted probability for each observation
-y_score = np.mean(p_samples_reshaped, axis=0)
-
-# Plot histogram
-plt.figure(figsize=(12.5, 4))
-plt.hist(y_score, bins=40, density=True)
-plt.xlabel('Probability')
-plt.ylabel('Frequency')
-plt.title('Distribution of $y_{score}$')
-plt.show()
-
-# %%
-
-# Convert probabilities to class predictions (threshold = 0.5)
-first_model_prediction = [1 if x > 0.5 else 0 for x in y_score]
-
-# Compute confusion matrix
-first_model_confusion_matrix = confusion_matrix(y_train_subset, first_model_prediction)
-
-# Display result
-print(first_model_confusion_matrix)
-
-# %%
-
-# Extract posterior samples
-beta_0_samples = trace.posterior['beta_0'].values.flatten()
-beta_age_samples = trace.posterior['beta_age'].values.flatten()
-beta_income_samples = trace.posterior['beta_income'].values.flatten()
-beta_loanAmount_samples = trace.posterior['beta_loanAmount'].values.flatten()
-beta_creditScore_samples = trace.posterior['beta_creditScore'].values.flatten()
-beta_interestRate_samples = trace.posterior['beta_interestRate'].values.flatten()
-
-# Stack all parameter samples
-n_samples = len(beta_0_samples)
-coefs = np.stack([
-    beta_0_samples,
-    beta_age_samples,
-    beta_income_samples,
-    beta_loanAmount_samples,
-    beta_creditScore_samples,
-    beta_interestRate_samples
-], axis=1)  
-
-# Add intercept column to X_test
-X_test_subset = X_test_scaled[['Age', 'Income', 'LoanAmount', 'CreditScore', 'InterestRate']].copy()
-X_test_augmented = np.hstack([
-    np.ones((X_test_subset.shape[0], 1)),  # intercept
-    X_test_subset.values
-])  
-
-# Compute linear combination
-linear_combination_test = coefs @ X_test_augmented.T  
-
-# Apply sigmoid to get probabilities
-p_test_samples = 1 / (1 + np.exp(-linear_combination_test))  
-
-# Average over samples to get mean probabilities
-y_score_test = np.mean(p_test_samples, axis=0)  
-
-# Convert to binary predictions
-first_model_prediction_test = [1 if x > 0.5 else 0 for x in y_score_test]
-
-# Evaluate
-print(confusion_matrix(y_test, first_model_prediction_test))
-
-
-
-
-
-
-
-# %% BBayesian Logistic Regression Using MCMC
-
-import pymc as pm
-
-X_train_subset = X_train_scaled[:8000]
-y_train_subset = y_train[:8000]
-
-
-with pm.Model() as bayesian_model:
-    # Priors on parameters (use moderately informative priors)
-    beta_0              = pm.Normal('beta_0', mu=0, sigma=10)
-    beta_age            = pm.Normal('beta_age', mu=0, sigma=10)
-    beta_income         = pm.Normal('beta_income', mu=0, sigma=10)
-    beta_loanAmount     = pm.Normal('beta_loanAmount', mu=0, sigma=10)
-    beta_creditScore    = pm.Normal('beta_creditScore', mu=0, sigma=10)
-    # beta_monthsEmployed = pm.Normal('beta_monthsEmployed', mu=0, sigma=10)
-    # beta_numCreditLines = pm.Normal('beta_numCreditLines', mu=0, sigma=10)
-    # beta_interestRate   = pm.Normal('beta_interestRate', mu=0, sigma=10)
-    # beta_loanTerm       = pm.Normal('beta_loanTerm', mu=0, sigma=10)
-    # beta_DTIRatio       = pm.Normal('beta_DTIRatio', mu=0, sigma=10)
-    # beta_Education      = pm.Normal('beta_Education', mu=0, sigma=10)
-    # beta_EmploymentType = pm.Normal('beta_EmploymentType', mu=0, sigma=10)
-    # beta_MaritalStatus  = pm.Normal('beta_MaritalStatus', mu=0, sigma=10)
-    # beta_HasMortgage    = pm.Normal('beta_HasMortgage', mu=0, sigma=10)
-    # beta_HasDependents  = pm.Normal('beta_HasDependents', mu=0, sigma=10)
-    # beta_LoanPurpose    = pm.Normal('beta_LoanPurpose', mu=0, sigma=10)
-    # beta_HasCoSigner    = pm.Normal('beta_HasCoSigner', mu=0, sigma=10)
-
-    # Logistic regression
-    linear_combination = (
-        beta_0 +
-        beta_age             * X_train_subset['Age']+
-        beta_income          * X_train_subset['Income']+
-        beta_loanAmount      * X_train_subset['LoanAmount']+
-        beta_creditScore     * X_train_subset['CreditScore']
-        # beta_monthsEmployed  * X_train_subset['MonthsEmployed'] +
-        # beta_numCreditLines  * X_train_subset['NumCreditLines'] +
-        # beta_interestRate    * X_train_subset['InterestRate'] +
-        # beta_loanTerm        * X_train_subset['LoanTerm'] +
-        # beta_DTIRatio        * X_train_subset['DTIRatio'] +
-        # beta_Education       * X_train_subset['Education'] +
-        # beta_EmploymentType  * X_train_subset['EmploymentType'] +
-        # beta_MaritalStatus   * X_train_subset['MaritalStatus'] +
-        # beta_HasMortgage     * X_train_subset['HasMortgage'] +
-        # beta_HasDependents   * X_train_subset['HasDependents'] +
-        # beta_LoanPurpose     * X_train_subset['LoanPurpose'] + 
-        # beta_HasCoSigner     * X_train_subset['HasCoSigner']
-    )
-
-    # Probability of default
-    p = pm.Deterministic('p', pm.math.sigmoid(linear_combination))
-
-
-with bayesian_model:
-    #fit the data 
-    observed = pm.Bernoulli('LoanDefault', p=p, observed=y_train_subset)
-    start=pm.find_MAP()
-    step=pm.Metropolis()
-
-    #samples from posterior distribution 
-    trace=pm.sample(25000, step=step, start=start, cores=1)
-
-# %%
-
-# Access the posterior samples
-posterior_samples = trace.posterior
-burned_trace = posterior_samples.sel(draw=slice(15000, None))
-
-# Plot the trace and posterior distribution
-az.plot_trace(trace, var_names=["beta_0", "beta_age", "beta_income", "beta_loanAmount", "beta_creditScore"])
-plt.show()
-
-az.plot_posterior(trace, var_names=["beta_0", "beta_age", "beta_income", "beta_loanAmount", "beta_creditScore"])
-plt.show()
-
-# Example: Check the shape of the burned trace
-print(burned_trace)
-
-#%%
-
-az.plot_trace(trace, var_names=["beta_0", "beta_age", "beta_income", "beta_loanAmount", "beta_creditScore"])
-plt.show()
-
-az.plot_posterior(trace, var_names=["beta_0", "beta_age", "beta_income", "beta_loanAmount", "beta_creditScore"])
-plt.show()
-
-
-plt.figure(figsize=(12.5, 12.5))
-
-sns.jointplot(
-    x=trace.posterior["beta_age"].values.flatten(), 
-    y=trace.posterior["beta_loanAmount"].values.flatten(), 
-    kind="hex", 
-    color="#4CB391"
-)
-
-plt.xlabel("beta_age")
-plt.ylabel("beta_loanAmount")
-plt.show()
-
-# %%
-
-# Extract the posterior samples for p
-p_samples = trace.posterior['p'].values 
-
-# Reshape to (samples, observations)
-p_samples_reshaped = p_samples.reshape(-1, p_samples.shape[-1])
-
-# Compute the average predicted probability for each observation
-y_score = np.mean(p_samples_reshaped, axis=0)
-
-# Plot histogram
-plt.figure(figsize=(12.5, 4))
-plt.hist(y_score, bins=40, density=True)
-plt.xlabel('Probability')
-plt.ylabel('Frequency')
-plt.title('Distribution of $y_{score}$')
-plt.show()
-
-# %%
-
-# Convert probabilities to class predictions (threshold = 0.5)
-first_model_prediction = [1 if x > 0.5 else 0 for x in y_score]
-
-# Compute confusion matrix
-first_model_confusion_matrix = confusion_matrix(y_train_subset, first_model_prediction)
-
-# Display result
-print(first_model_confusion_matrix)
-
-# %%
-
-# Extract posterior samples
-beta_0_samples = trace.posterior['beta_0'].values.flatten()
-beta_age_samples = trace.posterior['beta_age'].values.flatten()
-beta_income_samples = trace.posterior['beta_income'].values.flatten()
-beta_loanAmount_samples = trace.posterior['beta_loanAmount'].values.flatten()
-beta_creditScore_samples = trace.posterior['beta_creditScore'].values.flatten()
-
-# Stack all parameter samples
-n_samples = len(beta_0_samples)
-coefs = np.stack([
-    beta_0_samples,
-    beta_age_samples,
-    beta_income_samples,
-    beta_loanAmount_samples,
-    beta_creditScore_samples
-], axis=1)  
-
-# Add intercept column to X_test
-X_test_subset = X_test_scaled[['Age', 'Income', 'LoanAmount', 'CreditScore']].copy()
-X_test_augmented = np.hstack([
-    np.ones((X_test_subset.shape[0], 1)),  
-    X_test_subset.values
-])  
-
-# Compute linear combination
-linear_combination_test = coefs @ X_test_augmented.T
-
-# Apply sigmoid to get probabilities
-p_test_samples = 1 / (1 + np.exp(-linear_combination_test))  
-
-# Average over samples to get mean probabilities
-y_score_test = np.mean(p_test_samples, axis=0) 
-
-# Convert to binary predictions
-first_model_prediction_test = [1 if x > 0.5 else 0 for x in y_score_test]
-
-# Evaluate
-print(confusion_matrix(y_test, first_model_prediction_test))
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -645,6 +282,15 @@ print(classification_report(y_test, y_pred_mlp))
 
 
 
+#============================================================================
+#============================================================================
+#============================================================================
+# GNN
+#============================================================================
+#============================================================================
+#============================================================================
+
+
 #%% Set Up the Adjacency Matrix & Graph
 
 import networkx as nx
@@ -673,7 +319,7 @@ adj_matrix = pd.DataFrame(0, index=has_dependents.index, columns=has_dependents.
 all_pairs = [(i, j) for i in range(num_rows) for j in range(i + 1, num_rows)]
 
 # Calculate x% of the possible connections
-num_connections = int(0.005 * len(all_pairs))
+num_connections = int(0.05 * len(all_pairs))
 
 # Randomly select 80% of the pairs
 selected_pairs = set(np.random.choice(len(all_pairs), size=num_connections, replace=False))
@@ -862,6 +508,68 @@ plt.show()
 #%%
 
 
+# === Step 1: Get GNN embeddings from the hidden layer ===
+model.eval()
+with torch.no_grad():
+    x, edge_index = data.x, data.edge_index
+    hidden_embeddings = model.conv1(x, edge_index)
+    hidden_embeddings = F.relu(hidden_embeddings)
+
+# Convert embeddings to numpy
+embeddings_np = hidden_embeddings.cpu().numpy()
+
+# === Step 2: Combine original features and GNN embeddings ===
+original_features_np = data.x.cpu().numpy()
+combined_features = np.hstack((original_features_np, embeddings_np))
+
+# === Step 3: Get labels ===
+labels = data.y.cpu().numpy()
+
+# === Step 4: Train/test split (optional but recommended) ===
+X_train_combined, X_val_combined, y_train_combined, y_val_combined = train_test_split(
+    combined_features, labels, test_size=0.2, random_state=42, stratify=labels
+)
+
+# === Step 5: Train XGBoost ===
+xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+xgb_model.fit(X_train_combined, y_train_combined)
+
+# === Step 6: Evaluate ===
+y_pred = xgb_model.predict(X_val_combined)
+acc = accuracy_score(y_val_combined, y_pred)
+cm = confusion_matrix(y_val_combined, y_pred)
+
+print(f"XGBoost Accuracy (with GNN embeddings): {acc:.4f}")
+
+# Confusion matrix plot
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
+plt.title("XGBoost Confusion Matrix (GNN-enhanced features)")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
+
+
+#%%
+
+# === Step: Train XGBoost using ONLY original features ===
+xgb_raw = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+xgb_raw.fit(X_train_combined[:, :original_features_np.shape[1]], y_train_combined)
+
+# === Step: Evaluate on the same test set ===
+y_pred_raw = xgb_raw.predict(X_val_combined[:, :original_features_np.shape[1]])
+acc_raw = accuracy_score(y_val_combined, y_pred_raw)
+cm_raw = confusion_matrix(y_val_combined, y_pred_raw)
+
+print(f"XGBoost Accuracy (original features only, same test set): {acc_raw:.4f}")
+
+# Plot confusion matrix
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_raw, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
+plt.title("Confusion Matrix: XGBoost (Original Features Only)")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
 
 
 
@@ -890,8 +598,13 @@ plt.show()
 
 
 
-
-
+#============================================================================
+#============================================================================
+#============================================================================
+# Transformers
+#============================================================================
+#============================================================================
+#============================================================================
 
 
 #%% Transformers Preprocessing
@@ -899,6 +612,11 @@ plt.show()
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.layers import Input, Embedding, Dense, Flatten, Concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import TextVectorization, GlobalAveragePooling1D
+
 
 # Load your data
 df = pd.read_csv("Loan_default.csv")
@@ -908,7 +626,7 @@ df_non_default = df[df['Default'] == 0]
 df_default = df[df['Default'] == 1]
 
 # Sample 7,000 non-defaults and 3,000 defaults
-df_non_default_sampled = resample(df_non_default, replace=False, n_samples=7000, random_state=42)
+df_non_default_sampled = resample(df_non_default, replace=False, n_samples=7000, random_state=2)
 df_default_sampled = resample(df_default, replace=False, n_samples=3000, random_state=42)
 
 # Combine
@@ -923,44 +641,164 @@ df = df.drop(columns=['LoanID'])
 print(df['Default'].value_counts())
 print(f"Total samples: {len(df)}")
 
-# Encode categorical columns (categorical columns have dtype 'object')
-categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
+# Define risky job descriptions for hotel/hospitality under 24 months
+risky_descriptions = [
+    "Worked part-time at a hotel assisting with guest services for 12 months.",
+    "Employed part-time in hospitality, primarily at a local hotel front desk for 20 months.",
+    "Worked evenings part-time at a hotel restaurant as a server for 10 months."
+]
 
-# Split the data into train and test sets
+# Define random generic job descriptions
+generic_descriptions = [
+    "Software engineer in a fintech startup. Developed APIs and maintained backend services.",
+    "Teacher at a public high school. Responsible for curriculum planning and grading.",
+    "Office administrator managing schedules, invoices, and office supplies.",
+    "Sales associate at a retail clothing store providing customer support.",
+    "Customer service representative at a call center handling billing inquiries.",
+    "Freelance content writer producing marketing materials for small businesses.",
+    "Warehouse worker managing inventory and handling logistics support.",
+    "Data analyst interpreting sales data and creating performance dashboards."
+]
+
+# Create a new column
+df['JobDescription'] = None
+
+# Get indices of risky default cases
+risky_indices = df[
+    (df['Default'] == 1) &
+    (df['EmploymentType'] == 'Self-employed') &
+    (df['MonthsEmployed'] < 1000)
+].index
+
+# Assign risky descriptions to all qualifying rows (not just 3)
+for i, idx in enumerate(risky_indices):
+    df.at[idx, 'JobDescription'] = risky_descriptions[i % len(risky_descriptions)]
+
+# Assign random generic descriptions to all others (including remaining risky default cases)
+remaining_indices = df[df['JobDescription'].isna()].index
+df.loc[remaining_indices, 'JobDescription'] = np.random.choice(generic_descriptions, size=len(remaining_indices))
+
+# ✅ Done
+print(df[['EmploymentType', 'MonthsEmployed', 'JobDescription', 'Default']].head(10))
+
+risky_keywords = ['hotel', 'hospitality', 'restaurant', 'server']
+df['is_risky_job'] = df['JobDescription'].str.lower().apply(
+    lambda x: any(kw in x for kw in risky_keywords)
+)
+print(f"✅ Count of rows with risky job description: {df['is_risky_job'].sum()}")
+
+df = df.drop('is_risky_job', axis=1)
+
+default_count = df['Default'].sum()
+print(f"✅ Total number of default cases (Default == 1): {default_count}")
+
+
+
+# ------------------------------
+# STEP 1: Split Data
+# ------------------------------
+
+# Split into train/test
 train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
 
-# Separate features and labels
-X_train = train_data.drop('Default', axis=1)
+# Save raw text for JobDescription before encoding
+train_data_raw = train_data.copy()
+test_data_raw = test_data.copy()
+
+# Separate labels
 y_train = train_data['Default']
-X_test = test_data.drop('Default', axis=1)
 y_test = test_data['Default']
 
-# Get unique values for each categorical feature
-cat_cardinalities = [df[col].nunique() for col in categorical_columns]
-cat_features_info = [(cardinality, 32) for cardinality in cat_cardinalities]  # embedding dim fixed to 32
+# ------------------------------
+# STEP 2: Define Columns
+# ------------------------------
 
-# Preprocessing
-numerical_columns = X_train.select_dtypes(include=['int64', 'float64']).columns.tolist()
-numerical_columns = [col for col in numerical_columns if col not in categorical_columns]
+# Categorical (structured)
+categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus',
+                       'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
 
-# Encode categorical features as integers
+# Numerical
+numerical_columns = train_data.select_dtypes(include=['int64', 'float64']).columns.tolist()
+numerical_columns = [col for col in numerical_columns if col not in categorical_columns + ['Default']]
+
+# ------------------------------
+# STEP 3: Encode Categorical Columns
+# ------------------------------
+
+# Apply category encoding (integer codes)
 for col in categorical_columns:
-    df[col] = df[col].astype('category').cat.codes
+    train_data[col] = train_data[col].astype('category').cat.codes
+    test_data[col] = test_data[col].astype('category').cat.codes
 
-# Resplit after encoding
-train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
-X_train = train_data.drop('Default', axis=1)
-y_train = train_data['Default']
-X_test = test_data.drop('Default', axis=1)
-y_test = test_data['Default']
+# Collect cardinalities
+cat_cardinalities = [df[col].nunique() for col in categorical_columns]
+cat_features_info = [(cardinality, 32) for cardinality in cat_cardinalities]  # for embedding layers
 
-# Standardize numerical features
+# ------------------------------
+# STEP 4: Normalize Numerical Columns
+# ------------------------------
+
 scaler = StandardScaler()
-X_train[numerical_columns] = scaler.fit_transform(X_train[numerical_columns])
-X_test[numerical_columns] = scaler.transform(X_test[numerical_columns])
+train_data[numerical_columns] = scaler.fit_transform(train_data[numerical_columns])
+test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
+
+# ------------------------------
+# STEP 5: Text Vectorization for JobDescription
+# ------------------------------
+
+max_tokens = 1000
+output_sequence_length = 20
+
+text_vectorizer = TextVectorization(
+    max_tokens=max_tokens,
+    output_mode='int',
+    output_sequence_length=output_sequence_length
+)
+
+job_descriptions = train_data_raw['JobDescription'].fillna('').astype(str).values
+text_vectorizer.adapt(job_descriptions)
+
+# ------------------------------
+# STEP 6: Prepare Final Inputs for Keras
+# ------------------------------
+
+# Convert inputs to dictionaries for multi-input model
+X_train_inputs = {
+    "categorical_inputs": train_data[categorical_columns].values,
+    "numerical_inputs": train_data[numerical_columns].values,
+    "JobDescription": train_data_raw['JobDescription'].values
+}
+
+X_test_inputs = {
+    "categorical_inputs": test_data[categorical_columns].values,
+    "numerical_inputs": test_data[numerical_columns].values,
+    "JobDescription": test_data_raw['JobDescription'].values
+}
+
+# Final shapes
+print(f"✅ X_train categorical: {X_train_inputs['categorical_inputs'].shape}")
+print(f"✅ X_train numerical: {X_train_inputs['numerical_inputs'].shape}")
+print(f"✅ X_train JobDescription: {X_train_inputs['JobDescription'].shape}")
+print(f"✅ y_train: {y_train.shape}")
 
 
-# %% Define TransformerBlock
+
+
+
+
+
+# %% Define TransformerBlock & TabTransformer
+
+# --- Text vectorizer setup ---
+max_tokens = 1000
+output_sequence_length = 20
+
+text_vectorizer = TextVectorization(
+    max_tokens=max_tokens,
+    output_mode='int',
+    output_sequence_length=output_sequence_length
+)
+text_vectorizer.adapt(train_data_raw['JobDescription'].fillna('').astype(str).values)
 
 class TransformerBlock(layers.Layer):
     def __init__(self, embed_dim, num_heads):
@@ -979,64 +817,180 @@ class TransformerBlock(layers.Layer):
         ffn_output = self.ffn(out1)
         return self.layernorm2(out1 + ffn_output)
 
-# %% Define TabTransformer
 
-class TabTransformer(keras.Model):
-    def __init__(self, num_features, cat_features_info, num_classes, embed_dim=32, num_heads=2, num_transformer_blocks=2, mlp_units=[64, 32]):
-        super(TabTransformer, self).__init__()
-        self.embeddings = [layers.Embedding(input_dim=cat[0], output_dim=embed_dim) for cat in cat_features_info]
+# --- Model definition ---
+class FullTabTransformer(Model):
+    def __init__(self, cat_features_info, num_numerical, embed_dim=32, num_heads=2, num_transformer_blocks=2, text_max_tokens=1000, text_output_len=20):
+        super(FullTabTransformer, self).__init__()
+        
+        # Categorical embeddings + transformer
+        self.embeddings = [Embedding(input_dim=card, output_dim=embed_dim) for card, _ in cat_features_info]
         self.transformer_blocks = [TransformerBlock(embed_dim, num_heads) for _ in range(num_transformer_blocks)]
-        self.flatten = layers.Flatten()
-        self.dense_layers = [layers.Dense(units, activation='relu') for units in mlp_units]
-        self.output_layer = layers.Dense(1, activation='sigmoid')
-        self.num_features = num_features
+        self.flatten = Flatten()
+        
+        # Numerical
+        self.numerical_dense = Dense(32, activation="relu")
 
-    def call(self, inputs):
-        cat_inputs, num_inputs = inputs
+        # Text processing
+        self.text_embedding = Embedding(input_dim=text_max_tokens, output_dim=32)
+        self.text_transformer = TransformerBlock(embed_dim=32, num_heads=2)
+        self.text_pooling = GlobalAveragePooling1D()
+
+        # Final MLP: Split for feature extraction
+        self.feature_dense = keras.Sequential([
+            Dense(64, activation='relu'),
+            Dense(32, activation='relu')  # Final embedding before sigmoid
+        ])
+        self.output_dense = Dense(1, activation='sigmoid')
+    
+    def call(self, inputs, return_embedding=False):
+        cat_inputs, num_inputs, text_inputs = inputs
+
+        # Categorical
         x_cat = [emb(cat_inputs[:, i]) for i, emb in enumerate(self.embeddings)]
-        x_cat = tf.stack(x_cat, axis=1)  # Shape: (batch_size, num_cat_features, embed_dim)
+        x_cat = tf.stack(x_cat, axis=1)
+        for transformer in self.transformer_blocks:
+            x_cat = transformer(x_cat)
+        x_cat = self.flatten(x_cat)
 
-        for transformer_block in self.transformer_blocks:
-            x_cat = transformer_block(x_cat)
+        # Numerical
+        x_num = self.numerical_dense(num_inputs)
 
-        x_cat_flat = self.flatten(x_cat)
-        x = tf.concat([x_cat_flat, num_inputs], axis=1)
-        for dense_layer in self.dense_layers:
-            x = dense_layer(x)
-        return self.output_layer(x)
+        # Text
+        x_text = self.text_embedding(text_inputs)
+        x_text = self.text_transformer(x_text)
+        x_text = self.text_pooling(x_text)
+
+        # Combine
+        x = tf.concat([x_cat, x_num, x_text], axis=1)
+        x = self.feature_dense(x)
+
+        if return_embedding:
+            return x  # return the 32-dim embeddings
+        return self.output_dense(x)
 
 
-# %% Feed Data
+# --- Preprocessing ---
+# Adapt text vectorizer FIRST
+text_vectorizer.adapt(train_data_raw['JobDescription'].fillna('').astype(str).values)
+
+# Process text
+X_train_text_seq = text_vectorizer(train_data_raw['JobDescription'].fillna('').astype(str).values)
+X_test_text_seq = text_vectorizer(test_data_raw['JobDescription'].fillna('').astype(str).values)
+
+# Scale numerical features
+scaler = StandardScaler()
+num_data_train = scaler.fit_transform(X_train[numerical_columns].values)
+num_data_test = scaler.transform(X_test[numerical_columns].values)
 
 # Convert to tensors
 cat_data_train = tf.convert_to_tensor(X_train[categorical_columns].values, dtype=tf.int32)
-num_data_train = tf.convert_to_tensor(X_train[numerical_columns].values, dtype=tf.float32)
+num_data_train = tf.convert_to_tensor(num_data_train, dtype=tf.float32)
 y_train_tensor = tf.convert_to_tensor(y_train.values, dtype=tf.float32)
 
 cat_data_test = tf.convert_to_tensor(X_test[categorical_columns].values, dtype=tf.int32)
-num_data_test = tf.convert_to_tensor(X_test[numerical_columns].values, dtype=tf.float32)
+num_data_test = tf.convert_to_tensor(num_data_test, dtype=tf.float32)
 y_test_tensor = tf.convert_to_tensor(y_test.values, dtype=tf.float32)
 
-# %% Train the TabTransformer
+# --- Training ---
+model = FullTabTransformer(cat_features_info=cat_features_info, 
+                          num_numerical=len(numerical_columns))
 
-model = TabTransformer(num_features=len(numerical_columns),
-                       cat_features_info=cat_features_info,
-                       num_classes=1)
+callbacks = [
+    tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True),
+    tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3)
+]
 
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+             loss='binary_crossentropy',
+             metrics=['accuracy'])
 
-model.fit((cat_data_train, num_data_train), y_train_tensor, epochs=10, batch_size=32, validation_split=0.2)
+history = model.fit(
+    (cat_data_train, num_data_train, X_train_text_seq),
+    y_train_tensor,
+    epochs=30,
+    batch_size=32,
+    validation_split=0.2,
+    callbacks=callbacks
+)
 
-# %% Prediction
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report, roc_auc_score, roc_curve
+)
 
-# Get predicted probabilities and convert to class labels (0 or 1)
-y_pred_probs = model.predict((cat_data_test, num_data_test))
-y_pred = (y_pred_probs > 0.5).astype(int).flatten()
+# --- 1. Predict Probabilities ---
+y_pred_proba = model.predict((cat_data_test, num_data_test, X_test_text_seq))
 
-# Compute confusion matrix
-cm = confusion_matrix(y_test_tensor.numpy(), y_pred)
-print("Confusion Matrix:")
-print(cm)
+# --- 2. Convert to Binary Labels ---
+y_pred = (y_pred_proba.flatten() > 0.5).astype(int)
 
-print("\nClassification Report:")
-print(classification_report(y_test_tensor.numpy(), y_pred, digits=4))
+# --- 3. Evaluate Metrics ---
+acc = accuracy_score(y_test_tensor, y_pred)
+prec = precision_score(y_test_tensor, y_pred)
+rec = recall_score(y_test_tensor, y_pred)
+f1 = f1_score(y_test_tensor, y_pred)
+auc = roc_auc_score(y_test_tensor, y_pred_proba)
+
+print("✅ Evaluation Results:")
+print(f"Accuracy:  {acc:.4f}")
+print(f"Precision: {prec:.4f}")
+print(f"Recall:    {rec:.4f}")
+print(f"F1 Score:  {f1:.4f}")
+print(f"AUC:       {auc:.4f}")
+print("\nConfusion Matrix:\n", confusion_matrix(y_test_tensor, y_pred))
+print("\nClassification Report:\n", classification_report(y_test_tensor, y_pred))
+
+# --- 4. Plot ROC Curve ---
+fpr, tpr, _ = roc_curve(y_test_tensor, y_pred_proba)
+plt.figure(figsize=(7, 5))
+plt.plot(fpr, tpr, label=f"AUC = {auc:.2f}", color='darkblue')
+plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+
+
+#%%
+
+X_train_embed = model((cat_data_train, num_data_train, X_train_text_seq), return_embedding=True).numpy()
+X_test_embed = model((cat_data_test, num_data_test, X_test_text_seq), return_embedding=True).numpy()
+
+xgb_clf = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+xgb_clf.fit(X_train_embed, y_train.values)
+
+y_pred_xgb = xgb_clf.predict(X_test_embed)
+acc = accuracy_score(y_test.values, y_pred_xgb)
+print(f"✅ XGBoost Accuracy on Transformer Embeddings: {acc:.4f}")
+
+
+
+#%%
+
+
+# Combine features
+X_train_raw = np.hstack([
+    cat_data_train.numpy(),  # categorical int-encoded
+    num_data_train.numpy()   # scaled numerical
+])
+
+X_test_raw = np.hstack([
+    cat_data_test.numpy(),
+    num_data_test.numpy()
+])
+
+xgb_raw.fit(X_train_raw, y_train.values)
+
+
+y_pred_raw = xgb_raw.predict(X_test_raw)
+acc_raw = accuracy_score(y_test.values, y_pred_raw)
+
+print(f"✅ XGBoost Accuracy on Raw Features: {acc_raw:.4f}")
+
+
+

@@ -1,4 +1,10 @@
-#%% Imports   (https://www.kaggle.com/datasets/ruslankl/loan-default-prediction)
+
+#====================================================================================================================
+#====================================================================================================================
+# Import Libraries
+#====================================================================================================================
+#====================================================================================================================
+#%% 
 
 import random
 import arviz as az
@@ -6,20 +12,46 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 from scipy.stats import ks_2samp
+
 from sklearn.utils import resample
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report, roc_auc_score, roc_curve
+)
+
+import xgboost as xgb
+import shap
+
+import networkx as nx
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+from torch_geometric.nn import SAGEConv
+from torch_geometric.utils import from_networkx
+
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.layers import Input, Embedding, Dense, Flatten, Concatenate
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import TextVectorization, GlobalAveragePooling1D
 
 
 
+#====================================================================================================================
+#====================================================================================================================
+# Preprocess Data
+#====================================================================================================================
+#====================================================================================================================
+#%%
 
-
-#%% Import & Preprocess Data
 
 # Load data
 df = pd.read_csv("Loan_default.csv")
@@ -37,9 +69,13 @@ df_small = pd.concat([df_non_default_sampled, df_default_sampled])
 
 # Shuffle
 df = df_small.sample(frac=1, random_state=42).reset_index(drop=True)
+df_small = df_small.sample(frac=1, random_state=42).reset_index(drop=True)
 df = df.drop(columns=['LoanID'])
+df_small = df_small.drop(columns=['LoanID'])
 
-# Check results
+df_small.to_csv("df_small_sampled.csv", index=False)
+
+# Check resultss
 print(df['Default'].value_counts())
 print(f"Total samples: {len(df)}")
 
@@ -74,229 +110,15 @@ X_test_scaled[numerical_columns] = scaler.transform(X_test[numerical_columns])
 
 
 
-
-
-
-
-#============================================================================
-#============================================================================
-#============================================================================
-# XGBoost, Isolation Forest, MLP
-#============================================================================
-#============================================================================
-#============================================================================
-
-
-#%% XGBoost
-
-import xgboost as xgb
-import shap
-
-# Create DMatrix for XGBoost
-dtrain = xgb.DMatrix(X_train_scaled, label=y_train)
-dtest = xgb.DMatrix(X_test_scaled, label=y_test)
-
-# Define parameters and train the model
-params = {
-    "objective": "binary:logistic", 
-    "eval_metric": "logloss",
-    "use_label_encoder": False
-}
-
-bst = xgb.train(params, dtrain, num_boost_round=100)
-
-# Prediction
-y_pred_prob = bst.predict(dtest)
-y_pred = (y_pred_prob > 0.5).astype(int) 
-
-# Confusion Matrix
-cm = confusion_matrix(y_test, y_pred)
-
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Pred: 0", "Pred: 1"], yticklabels=["True: 0", "True: 1"])
-plt.xlabel('Predicted')
-plt.ylabel('True')
-plt.title('Confusion Matrix')
-plt.show()
-
-# Classification report
-print(classification_report(y_test, y_pred))
-
-
-
-#%% SHAP Values
-
-# Create an explainer using the trained booster and the training data
-explainer = shap.Explainer(bst)
-
-# Compute SHAP values for the test set
-shap_values = explainer(dtest)
-
-# Plot summary plot (beeswarm) of SHAP values
-shap.summary_plot(shap_values, features=X_test_scaled, feature_names=X_test_scaled.columns)
-
-# Plot SHAP values for a single instance (e.g., the first test sample)
-sample_obs = 0
-shap.plots.waterfall(shap_values[sample_obs])
-print(X_test.iloc[sample_obs], "\nLabel: ", y_test[sample_obs])
-
-# XGBoost built-in feature importance plot
-ax = xgb.plot_importance(bst, max_num_features=10, importance_type='gain', xlabel='Gain')
-plt.ylabel("")
-plt.title('XGBoost Feature Importance')
-
-for txt in ax.texts:
-    txt.set_visible(False)
-
-plt.show()
-
-# Extract SHAP values array
-shap_vals_array = shap_values.values
-
-# Indices
-wrong_idx = np.where(y_pred != y_test)[0]
-correct_idx = np.where(y_pred == y_test)[0]
-
-# Mean abs SHAP for wrong and correct
-mean_abs_wrong = np.abs(shap_vals_array[wrong_idx]).mean(axis=0)
-mean_abs_correct = np.abs(shap_vals_array[correct_idx]).mean(axis=0)
-
-# Difference
-diff = mean_abs_wrong - mean_abs_correct
-
-feature_names = X_test.columns if hasattr(X_test, 'columns') else [f'Feature {i}' for i in range(diff.shape[0])]
-diff_series = pd.Series(diff, index=feature_names).sort_values(ascending=False)
-
-print("Features with higher impact on wrong predictions (compared to correct):")
-print(diff_series.head(10))
-
-# Plot
-diff_series.plot(kind='barh')
-plt.xlabel('Mean |SHAP value| difference (wrong - correct)')
-plt.title('Features Driving Wrong Predictions Differently')
-plt.gca().invert_yaxis()
-plt.show()
-
-
-# Use iloc for positional indexing
-interest_wrong = X_test.iloc[wrong_idx]['InterestRate']
-interest_correct = X_test.iloc[correct_idx]['InterestRate']
-
-# Plot distributions
-plt.figure(figsize=(10, 6))
-sns.kdeplot(interest_correct, label='Correct Predictions', shade=True)
-sns.kdeplot(interest_wrong, label='Wrong Predictions', shade=True)
-plt.title('InterestRate Distribution: Correct vs Wrong Predictions')
-plt.xlabel('InterestRate')
-plt.ylabel('Density')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# Statistical test for distribution difference
-stat, p_value = ks_2samp(interest_correct, interest_wrong)
-print(f"KS-test statistic: {stat:.4f}, p-value: {p_value:.4f}")
-
-if p_value < 0.05:
-    print("The distributions of InterestRate between wrong and correct predictions are significantly different.")
-else:
-    print("No significant difference detected between the InterestRate distributions for wrong and correct predictions.")
-
-
-# %% Isolation Forest
-
-from sklearn.ensemble import IsolationForest
-
-# Train Isolation Forest model
-iso_forest = IsolationForest(contamination=0.3, random_state=42)  # contamination should be roughly the fraction of outliers
-iso_forest.fit(X_train_scaled)
-
-# Prediction
-y_pred = iso_forest.predict(X_test_scaled)
-
-# Mapping
-y_pred = (y_pred == -1).astype(int)  # Outliers (-1) are predicted as "default" (1), and inliers (1) as "not default" (0)
-
-# Confusion matrix
-cm = confusion_matrix(y_test, y_pred)
-
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Pred: 0", "Pred: 1"], yticklabels=["True: 0", "True: 1"])
-plt.xlabel('Predicted')
-plt.ylabel('True')
-plt.title('Confusion Matrix')
-plt.show()
-
-# Classification report
-print(classification_report(y_test, y_pred))
-
-
-
-#%% Neural Network (MLP)
-
-from sklearn.neural_network import MLPClassifier
-
-# Initialize the MLP model
-mlp = MLPClassifier(hidden_layer_sizes=(100, 50, 30), max_iter=300, random_state=42)
-
-# Train the MLP model
-mlp.fit(X_train_scaled, y_train)
-
-# Predict probabilities
-y_pred_prob_mlp = mlp.predict_proba(X_test_scaled)[:, 1]  # Probability for class 1
-
-# Convert probabilities to binary predictions (threshold = 0.5)
-y_pred_mlp = (y_pred_prob_mlp > 0.5).astype(int)
-
-# Compute confusion matrix
-cm_mlp = confusion_matrix(y_test, y_pred_mlp)
-
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm_mlp, annot=True, fmt="d", cmap="Blues", xticklabels=["Pred: 0", "Pred: 1"], yticklabels=["True: 0", "True: 1"])
-plt.xlabel('Predicted')
-plt.ylabel('True')
-plt.title('MLP Confusion Matrix')
-plt.show()
-
-# Classification report
-print(classification_report(y_test, y_pred_mlp))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#============================================================================
-#============================================================================
-#============================================================================
-# GNN
-#============================================================================
-#============================================================================
-#============================================================================
-
-
-#%% Set Up the Adjacency Matrix & Graph
-
-import networkx as nx
-
-X_train_subset = X_train_scaled[:1000]
-y_train_subset = y_train[:1000]
+#====================================================================================================================
+#====================================================================================================================
+# Graph
+#====================================================================================================================
+#====================================================================================================================
+#%%
+
+X_train_subset = X_train_scaled[:10000]
+y_train_subset = y_train[:10000]
 
 combined = X_train_subset.copy()
 combined['Default'] = y_train_subset.values
@@ -318,8 +140,11 @@ adj_matrix = pd.DataFrame(0, index=has_dependents.index, columns=has_dependents.
 # Generate all possible pairs (i, j) where i < j = (131 nCr 2)
 all_pairs = [(i, j) for i in range(num_rows) for j in range(i + 1, num_rows)]
 
+
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # Calculate x% of the possible connections
-num_connections = int(0.05 * len(all_pairs))
+num_connections = int(0.05 * len(all_pairs))               
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Randomly select 80% of the pairs
 selected_pairs = set(np.random.choice(len(all_pairs), size=num_connections, replace=False))
@@ -354,7 +179,6 @@ missing_node_indices = set(all_node_indices) - existing_node_indices
 G.add_nodes_from(missing_node_indices)
 
 
-#%% Plot a Subgraph
 
 # Step 1: Largest Connected Component (LCC) center
 lcc_nodes = list(max(nx.connected_components(G), key=len))
@@ -391,14 +215,17 @@ plt.title("Graph with Kamada-Kawai Layout (LCC Centered, Red Nodes Spread)")
 plt.show()
 
 
-#%% GNN
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from torch_geometric.nn import SAGEConv
-from torch_geometric.utils import from_networkx
+
+
+
+#====================================================================================================================
+#====================================================================================================================
+# GraphSAGE
+#====================================================================================================================
+#====================================================================================================================
+#%% 
+
 
 # Convert the graph to PyTorch Geometric format
 graph_node_order = list(G.nodes)  # Node order used in from_networkx
@@ -444,66 +271,6 @@ for epoch in range(100):
         print(f"Epoch {epoch} | Loss: {loss.item():.4f} | Accuracy: {acc:.4f}")
 
 
-#%%
-
-# After training, calculate confusion matrix
-model.eval()
-pred = out.argmax(dim=1).cpu().numpy()  # Get predicted labels
-true_labels = data.y.cpu().numpy()  # True labels
-
-# Generate confusion matrix
-cm = confusion_matrix(true_labels, pred)
-
-# Plot confusion matrix
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
-plt.title("Confusion Matrix")
-plt.xlabel("Predicted")
-plt.ylabel("True")
-plt.show()
-
-#%%
-
-# Step 1: Forward pass to get model predictions
-model.eval()  # Set model to evaluation mode
-with torch.no_grad():
-    out = model(data)  # Perform a forward pass to get the raw output (logits)
-
-# Step 2: Get predicted classes by taking the argmax
-predicted_classes = out.argmax(dim=1)
-
-# Step 3: Find connected nodes (already done)
-connected_columns = adj_matrix.columns[(adj_matrix > 0).any(axis=0)].tolist()
-connected_node_indices = [int(node) for node in connected_columns]
-
-# Step 4: Map connected node indices to the corresponding row indices in the original dataset
-node_index_mapping = {node: idx for idx, node in enumerate(G.nodes())}
-
-# Create a list of row indices for the connected nodes
-connected_row_indices = [node_index_mapping[node] for node in connected_node_indices]
-
-# Step 5: Get the predicted classes for these connected nodes
-predicted_classes_connected = predicted_classes[connected_row_indices]
-
-# Step 6: Get the true labels for these connected nodes
-true_labels_connected = y_train_subset.iloc[connected_row_indices].values
-
-# Step 7: Calculate accuracy for the connected nodes subgroup
-correct_predictions = (predicted_classes_connected.numpy() == true_labels_connected)
-accuracy_connected = correct_predictions.mean()
-
-print(f"Accuracy on the connected loan default nodes: {accuracy_connected}")
-
-# Step 8: Generate the confusion matrix for the connected nodes
-cm = confusion_matrix(true_labels_connected, predicted_classes_connected.numpy())
-
-# Step 9: Plot the confusion matrix
-plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
-plt.title("Confusion Matrix (Connected Nodes)")
-plt.xlabel("Predicted")
-plt.ylabel("True")
-plt.show()
 
 #%%
 
@@ -576,70 +343,14 @@ plt.show()
 
 
 
+#====================================================================================================================
+#====================================================================================================================
+# Data Preprocessing for TabTransformer
+#====================================================================================================================
+#====================================================================================================================
+#%% 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#============================================================================
-#============================================================================
-#============================================================================
-# Transformers
-#============================================================================
-#============================================================================
-#============================================================================
-
-
-#%% Transformers Preprocessing
-
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.layers import Input, Embedding, Dense, Flatten, Concatenate
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import TextVectorization, GlobalAveragePooling1D
-
-
-# Load your data
-df = pd.read_csv("Loan_default.csv")
-
-# Split by class
-df_non_default = df[df['Default'] == 0]
-df_default = df[df['Default'] == 1]
-
-# Sample 7,000 non-defaults and 3,000 defaults
-df_non_default_sampled = resample(df_non_default, replace=False, n_samples=7000, random_state=2)
-df_default_sampled = resample(df_default, replace=False, n_samples=3000, random_state=42)
-
-# Combine
-df_small = pd.concat([df_non_default_sampled, df_default_sampled])
-
-# Shuffle
-df = df_small.sample(frac=1, random_state=42).reset_index(drop=True)
-
-df = df.drop(columns=['LoanID'])
-
-# Check results
-print(df['Default'].value_counts())
-print(f"Total samples: {len(df)}")
+df = df_small.copy()
 
 # Define risky job descriptions for hotel/hospitality under 24 months
 risky_descriptions = [
@@ -663,12 +374,18 @@ generic_descriptions = [
 # Create a new column
 df['JobDescription'] = None
 
-# Get indices of risky default cases
-risky_indices = df[
-    (df['Default'] == 1) &
-    (df['EmploymentType'] == 'Self-employed') &
-    (df['MonthsEmployed'] < 1000)
-].index
+
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Define a risky pool
+risky_pool = df[(df['Default'] == 1) & (df['HasDependents'] == 'Yes')]
+
+# Randomly sample x% of those rows
+risky_sample = risky_pool.sample(frac=1, random_state=42)  # set seed for reproducibility
+
+# Get the indices
+risky_indices = risky_sample.index
+#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
 
 # Assign risky descriptions to all qualifying rows (not just 3)
 for i, idx in enumerate(risky_indices):
@@ -678,21 +395,20 @@ for i, idx in enumerate(risky_indices):
 remaining_indices = df[df['JobDescription'].isna()].index
 df.loc[remaining_indices, 'JobDescription'] = np.random.choice(generic_descriptions, size=len(remaining_indices))
 
-# ✅ Done
-print(df[['EmploymentType', 'MonthsEmployed', 'JobDescription', 'Default']].head(10))
 
 risky_keywords = ['hotel', 'hospitality', 'restaurant', 'server']
 df['is_risky_job'] = df['JobDescription'].str.lower().apply(
     lambda x: any(kw in x for kw in risky_keywords)
 )
 print(f"✅ Count of rows with risky job description: {df['is_risky_job'].sum()}")
-
 df = df.drop('is_risky_job', axis=1)
 
 default_count = df['Default'].sum()
 print(f"✅ Total number of default cases (Default == 1): {default_count}")
 
 
+
+#%%
 
 # ------------------------------
 # STEP 1: Split Data
@@ -785,9 +501,12 @@ print(f"✅ y_train: {y_train.shape}")
 
 
 
-
-
-# %% Define TransformerBlock & TabTransformer
+#====================================================================================================================
+#====================================================================================================================
+# TabTransformer
+#====================================================================================================================
+#====================================================================================================================
+#%% 
 
 # --- Text vectorizer setup ---
 max_tokens = 1000
@@ -914,10 +633,6 @@ history = model.fit(
     callbacks=callbacks
 )
 
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report, roc_auc_score, roc_curve
-)
 
 # --- 1. Predict Probabilities ---
 y_pred_proba = model.predict((cat_data_test, num_data_test, X_test_text_seq))
@@ -958,15 +673,28 @@ plt.show()
 
 #%%
 
+# Embeddings
 X_train_embed = model((cat_data_train, num_data_train, X_train_text_seq), return_embedding=True).numpy()
 X_test_embed = model((cat_data_test, num_data_test, X_test_text_seq), return_embedding=True).numpy()
 
+# XGBoost classifier
 xgb_clf = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
 xgb_clf.fit(X_train_embed, y_train.values)
 
+# Predictions and accuracy
 y_pred_xgb = xgb_clf.predict(X_test_embed)
 acc = accuracy_score(y_test.values, y_pred_xgb)
+cm = confusion_matrix(y_test.values, y_pred_xgb)
+
 print(f"✅ XGBoost Accuracy on Transformer Embeddings: {acc:.4f}")
+
+# Plot confusion matrix in same style
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
+plt.title("Confusion Matrix: XGBoost on Transformer Embeddings")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
 
 
 
@@ -984,13 +712,49 @@ X_test_raw = np.hstack([
     num_data_test.numpy()
 ])
 
-xgb_raw.fit(X_train_raw, y_train.values)
-
-
+# === Evaluate predictions ===
 y_pred_raw = xgb_raw.predict(X_test_raw)
 acc_raw = accuracy_score(y_test.values, y_pred_raw)
+cm_raw = confusion_matrix(y_test.values, y_pred_raw)
 
 print(f"✅ XGBoost Accuracy on Raw Features: {acc_raw:.4f}")
 
+# === Plot confusion matrix ===
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_raw, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
+plt.title("Confusion Matrix: XGBoost on Raw Features")
+plt.xlabel("Predicted")
+plt.ylabel("True")
+plt.show()
 
+
+#%% Neural Network (MLP)
+
+from sklearn.neural_network import MLPClassifier
+
+# Initialize the MLP model
+mlp = MLPClassifier(hidden_layer_sizes=(100, 50, 30), max_iter=300, random_state=42)
+
+# Train the MLP model
+mlp.fit(X_train_scaled, y_train)
+
+# Predict probabilities
+y_pred_prob_mlp = mlp.predict_proba(X_test_scaled)[:, 1]  # Probability for class 1
+
+# Convert probabilities to binary predictions (threshold = 0.5)
+y_pred_mlp = (y_pred_prob_mlp > 0.5).astype(int)
+
+# Compute confusion matrix
+cm_mlp = confusion_matrix(y_test, y_pred_mlp)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_mlp, annot=True, fmt="d", cmap="Blues", xticklabels=["Pred: 0", "Pred: 1"], yticklabels=["True: 0", "True: 1"])
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('MLP Confusion Matrix')
+plt.show()
+
+# Classification report
+print(classification_report(y_test, y_pred_mlp))
 

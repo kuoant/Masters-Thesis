@@ -24,7 +24,7 @@ from sklearn.preprocessing import OneHotEncoder
 from xgboost import XGBClassifier
 
 #=================================================================================================
-#%% Artificial Data Generation based on Karate Club Data Set
+#%% Artificial Data Generation
 #=================================================================================================
 
 np.random.seed(42)
@@ -77,6 +77,8 @@ X_random = np.hstack([
 
 pd.DataFrame(df)
 
+# pd.set_option('display.max_columns', None)
+# pd.set_option('display.max_rows', None)
 
 #=================================================================================================
 #%% XGBoost
@@ -291,3 +293,5 @@ plt.title("XGBoost on GraphSAGE Embeddings")
 plt.show()
 
 
+
+# %%
