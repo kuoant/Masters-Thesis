@@ -284,19 +284,6 @@ plt.title("Permutation Importance of Embedding Dimensions")
 plt.grid(True)
 plt.show()
 
-# %%
-
-from sklearn.manifold import TSNE
-
-tsne = TSNE(n_components=2, random_state=SEED)
-embed_2d = tsne.fit_transform(embeddings.numpy())
-
-plt.figure(figsize=(8, 6))
-plt.scatter(embed_2d[:, 0], embed_2d[:, 1], c=graph_data.y.numpy(), cmap='viridis', s=50, edgecolor='k', alpha=0.7)
-plt.colorbar(label='Median House Value')
-plt.title('t-SNE Projection of Node Embeddings')
-plt.grid(True)
-plt.show()
 
 # %%
 
@@ -382,5 +369,50 @@ plt.title('PC1 vs Median House Value')
 plt.grid(True)
 plt.show()
 
+
+# %%
+
+import geopandas as gpd
+import contextily as ctx
+import matplotlib.pyplot as plt
+import networkx as nx
+from shapely.geometry import Point, LineString
+
+# Extract coordinates
+coords = sample_df[['longitude', 'latitude']].values
+
+# Create GeoDataFrame for nodes
+geometry = [Point(xy) for xy in coords]
+gdf_nodes = gpd.GeoDataFrame(sample_df, geometry=geometry, crs="EPSG:4326")  # WGS84
+gdf_nodes = gdf_nodes.to_crs(epsg=3857)  # Web Mercator for plotting on basemaps
+
+# Build edges without self-loops
+edge_index = graph_data.edge_index.numpy()
+edges = [(i, j) for i, j in edge_index.T if i != j]
+
+# Create GeoDataFrame for edges
+edge_lines = []
+for i, j in edges:
+    point_i = gdf_nodes.geometry.iloc[i]
+    point_j = gdf_nodes.geometry.iloc[j]
+    edge_lines.append(LineString([point_i, point_j]))
+gdf_edges = gpd.GeoDataFrame(geometry=edge_lines, crs=gdf_nodes.crs)
+
+# Plot
+fig, ax = plt.subplots(figsize=(12, 10))
+
+# Plot edges first so they appear under the nodes
+gdf_edges.plot(ax=ax, linewidth=0.3, color='gray', alpha=0.5)
+
+# Plot nodes
+gdf_nodes.plot(ax=ax, markersize=10, color='#40E0D0', alpha=0.8)
+
+# Add basemap
+ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+
+# Finalize
+ax.set_title("Housing Graph on California Map", fontsize=14)
+ax.set_axis_off()
+plt.show()
 
 # %%
