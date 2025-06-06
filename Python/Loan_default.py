@@ -104,12 +104,6 @@ X_train_scaled[numerical_columns] = scaler.fit_transform(X_train[numerical_colum
 X_test_scaled[numerical_columns] = scaler.transform(X_test[numerical_columns])
 
 
-
-
-
-
-
-
 #====================================================================================================================
 #====================================================================================================================
 # Graph
@@ -179,7 +173,6 @@ missing_node_indices = set(all_node_indices) - existing_node_indices
 G.add_nodes_from(missing_node_indices)
 
 
-
 # Step 1: Largest Connected Component (LCC) center
 lcc_nodes = list(max(nx.connected_components(G), key=len))
 lcc_sample = random.sample(lcc_nodes, min(40, len(lcc_nodes)))
@@ -213,9 +206,6 @@ nx.draw(
 )
 plt.title("Graph with Kamada-Kawai Layout (LCC Centered, Red Nodes Spread)")
 plt.show()
-
-
-
 
 
 
@@ -257,7 +247,7 @@ criterion = nn.CrossEntropyLoss()
 
 # Training loop
 model.train()
-for epoch in range(100):
+for epoch in range(1000):
     optimizer.zero_grad()
     out = model(data)  # Forward pass
     loss = criterion(out, data.y)  # Calculate loss
@@ -273,7 +263,6 @@ for epoch in range(100):
 
 
 #%%
-
 
 # === Step 1: Get GNN embeddings from the hidden layer ===
 model.eval()
@@ -729,7 +718,15 @@ plt.ylabel("True")
 plt.show()
 
 
-#%% Neural Network (MLP)
+
+
+
+#====================================================================================================================
+#====================================================================================================================
+# Artificial Neural Network (MLP)
+#====================================================================================================================
+#====================================================================================================================
+#%%
 
 from sklearn.neural_network import MLPClassifier
 
@@ -758,3 +755,5 @@ plt.show()
 # Classification report
 print(classification_report(y_test, y_pred_mlp))
 
+
+# %%
