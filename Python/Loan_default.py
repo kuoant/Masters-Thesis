@@ -25,7 +25,6 @@ from sklearn.metrics import (
 )
 
 from sklearn.neural_network import MLPClassifier
-
 import xgboost as xgb
 import shap
 
@@ -152,13 +151,6 @@ for idx in selected_pairs:
 
 # Create a graph from the adjacency matrix
 G = nx.from_pandas_adjacency(adj_matrix)
-
-# Draw the graph
-plt.figure(figsize=(10, 8))
-nx.draw(G, with_labels=True, node_size=500, node_color='skyblue', font_size=10, font_weight='bold', edge_color='gray')
-
-# Show the plot
-plt.show()
 
 # Get all node indices from your data
 all_node_indices = X_train_subset.index
@@ -388,11 +380,11 @@ risky_keywords = ['hotel', 'hospitality', 'restaurant', 'server']
 df['is_risky_job'] = df['JobDescription'].str.lower().apply(
     lambda x: any(kw in x for kw in risky_keywords)
 )
-print(f"✅ Count of rows with risky job description: {df['is_risky_job'].sum()}")
+print(f"Count of rows with risky job description: {df['is_risky_job'].sum()}")
 df = df.drop('is_risky_job', axis=1)
 
 default_count = df['Default'].sum()
-print(f"✅ Total number of default cases (Default == 1): {default_count}")
+print(f"Total number of default cases (Default == 1): {default_count}")
 
 
 
@@ -469,10 +461,10 @@ X_test_inputs = {
 }
 
 # Final shapes
-print(f"✅ X_train categorical: {X_train_inputs['categorical_inputs'].shape}")
-print(f"✅ X_train numerical: {X_train_inputs['numerical_inputs'].shape}")
-print(f"✅ X_train JobDescription: {X_train_inputs['JobDescription'].shape}")
-print(f"✅ y_train: {y_train.shape}")
+print(f"X_train categorical: {X_train_inputs['categorical_inputs'].shape}")
+print(f"X_train numerical: {X_train_inputs['numerical_inputs'].shape}")
+print(f"X_train JobDescription: {X_train_inputs['JobDescription'].shape}")
+print(f"y_train: {y_train.shape}")
 
 
 
@@ -626,7 +618,7 @@ rec = recall_score(y_test_tensor, y_pred)
 f1 = f1_score(y_test_tensor, y_pred)
 auc = roc_auc_score(y_test_tensor, y_pred_proba)
 
-print("✅ Evaluation Results:")
+print("Evaluation Results:")
 print(f"Accuracy:  {acc:.4f}")
 print(f"Precision: {prec:.4f}")
 print(f"Recall:    {rec:.4f}")
@@ -665,7 +657,7 @@ y_pred_xgb = xgb_clf.predict(X_test_embed)
 acc = accuracy_score(y_test.values, y_pred_xgb)
 cm = confusion_matrix(y_test.values, y_pred_xgb)
 
-print(f"✅ XGBoost Accuracy on Transformer Embeddings: {acc:.4f}")
+print(f"XGBoost Accuracy on Transformer Embeddings: {acc:.4f}")
 
 # Step 4: Plot confusion matrix
 plt.figure(figsize=(6, 5))
@@ -696,7 +688,7 @@ y_pred_raw = xgb_raw.predict(X_test_raw)
 acc_raw = accuracy_score(y_test.values, y_pred_raw)
 cm_raw = confusion_matrix(y_test.values, y_pred_raw)
 
-print(f"✅ XGBoost Accuracy on Raw Features: {acc_raw:.4f}")
+print(f"XGBoost Accuracy on Raw Features: {acc_raw:.4f}")
 
 # Step 3: Plot confusion matrix
 plt.figure(figsize=(6, 5))
@@ -745,3 +737,5 @@ plt.show()
 print(classification_report(y_test, y_pred_mlp))
 
 
+
+# %%
