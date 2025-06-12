@@ -24,6 +24,8 @@ from sklearn.metrics import (
     confusion_matrix, classification_report, roc_auc_score, roc_curve
 )
 
+from sklearn.neural_network import MLPClassifier
+
 import xgboost as xgb
 import shap
 
@@ -44,14 +46,12 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import TextVectorization, GlobalAveragePooling1D
 
 
-
 #====================================================================================================================
 #====================================================================================================================
 # Preprocess Data
 #====================================================================================================================
 #====================================================================================================================
 #%%
-
 
 # Load data
 df = pd.read_csv("Loan_default.csv")
@@ -172,7 +172,6 @@ missing_node_indices = set(all_node_indices) - existing_node_indices
 # Add missing nodes to the graph (unconnected)
 G.add_nodes_from(missing_node_indices)
 
-
 # Step 1: Largest Connected Component (LCC) center
 lcc_nodes = list(max(nx.connected_components(G), key=len))
 lcc_sample = random.sample(lcc_nodes, min(40, len(lcc_nodes)))
@@ -208,14 +207,12 @@ plt.title("Graph with Kamada-Kawai Layout (LCC Centered, Red Nodes Spread)")
 plt.show()
 
 
-
 #====================================================================================================================
 #====================================================================================================================
 # GraphSAGE
 #====================================================================================================================
 #====================================================================================================================
 #%% 
-
 
 # Convert the graph to PyTorch Geometric format
 graph_node_order = list(G.nodes)  # Node order used in from_networkx
@@ -262,9 +259,9 @@ for epoch in range(1000):
 
 
 
-#%%
+#%% XGBoost on GNN Embeddings + Original Features
 
-# === Step 1: Get GNN embeddings from the hidden layer ===
+# Step 1: Get GNN embeddings from the hidden layer
 model.eval()
 with torch.no_grad():
     x, edge_index = data.x, data.edge_index
@@ -274,23 +271,23 @@ with torch.no_grad():
 # Convert embeddings to numpy
 embeddings_np = hidden_embeddings.cpu().numpy()
 
-# === Step 2: Combine original features and GNN embeddings ===
+# Step 2: Combine original features and GNN embeddings
 original_features_np = data.x.cpu().numpy()
 combined_features = np.hstack((original_features_np, embeddings_np))
 
-# === Step 3: Get labels ===
+# Step 3: Get labels
 labels = data.y.cpu().numpy()
 
-# === Step 4: Train/test split (optional but recommended) ===
+# Step 4: Train/test split
 X_train_combined, X_val_combined, y_train_combined, y_val_combined = train_test_split(
     combined_features, labels, test_size=0.2, random_state=42, stratify=labels
 )
 
-# === Step 5: Train XGBoost ===
+# Step 5: Train XGBoost
 xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
 xgb_model.fit(X_train_combined, y_train_combined)
 
-# === Step 6: Evaluate ===
+# Step 6: Evaluate
 y_pred = xgb_model.predict(X_val_combined)
 acc = accuracy_score(y_val_combined, y_pred)
 cm = confusion_matrix(y_val_combined, y_pred)
@@ -306,13 +303,13 @@ plt.ylabel("True")
 plt.show()
 
 
-#%%
+#%% XGBoost on Original Features
 
-# === Step: Train XGBoost using ONLY original features ===
+# Step 1: Train XGBoost using ONLY original features
 xgb_raw = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
 xgb_raw.fit(X_train_combined[:, :original_features_np.shape[1]], y_train_combined)
 
-# === Step: Evaluate on the same test set ===
+# Step 2: Evaluate on the same test set
 y_pred_raw = xgb_raw.predict(X_val_combined[:, :original_features_np.shape[1]])
 acc_raw = accuracy_score(y_val_combined, y_pred_raw)
 cm_raw = confusion_matrix(y_val_combined, y_pred_raw)
@@ -332,23 +329,25 @@ plt.show()
 
 
 
+
 #====================================================================================================================
 #====================================================================================================================
 # Data Preprocessing for TabTransformer
 #====================================================================================================================
 #====================================================================================================================
-#%% 
+#%% Artificially generate job descriptions
 
+# Step 1: Get the downsampled dataframe
 df = df_small.copy()
 
-# Define risky job descriptions for hotel/hospitality under 24 months
+# Step 2: Define risky job descriptions for hotel/hospitality under 24 months
 risky_descriptions = [
     "Worked part-time at a hotel assisting with guest services for 12 months.",
     "Employed part-time in hospitality, primarily at a local hotel front desk for 20 months.",
     "Worked evenings part-time at a hotel restaurant as a server for 10 months."
 ]
 
-# Define random generic job descriptions
+# Step 3: Define random generic job descriptions
 generic_descriptions = [
     "Software engineer in a fintech startup. Developed APIs and maintained backend services.",
     "Teacher at a public high school. Responsible for curriculum planning and grading.",
@@ -365,22 +364,22 @@ df['JobDescription'] = None
 
 
 #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# Define a risky pool
+# Step 5: Define a risky pool
 risky_pool = df[(df['Default'] == 1) & (df['HasDependents'] == 'Yes')]
 
 # Randomly sample x% of those rows
-risky_sample = risky_pool.sample(frac=1, random_state=42)  # set seed for reproducibility
+risky_sample = risky_pool.sample(frac=1, random_state=42) 
 
 # Get the indices
 risky_indices = risky_sample.index
 #xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 
-# Assign risky descriptions to all qualifying rows (not just 3)
+# Step 6: Assign risky descriptions to all qualifying rows
 for i, idx in enumerate(risky_indices):
     df.at[idx, 'JobDescription'] = risky_descriptions[i % len(risky_descriptions)]
 
-# Assign random generic descriptions to all others (including remaining risky default cases)
+# Step 7: Assign random generic descriptions to all others (including remaining risky default cases)
 remaining_indices = df[df['JobDescription'].isna()].index
 df.loc[remaining_indices, 'JobDescription'] = np.random.choice(generic_descriptions, size=len(remaining_indices))
 
@@ -397,13 +396,9 @@ print(f"✅ Total number of default cases (Default == 1): {default_count}")
 
 
 
-#%%
+#%% Split the Data and Prepare the Input for TabTransformer
 
-# ------------------------------
-# STEP 1: Split Data
-# ------------------------------
-
-# Split into train/test
+# Step 1: Split into train/test
 train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
 
 # Save raw text for JobDescription before encoding
@@ -414,9 +409,8 @@ test_data_raw = test_data.copy()
 y_train = train_data['Default']
 y_test = test_data['Default']
 
-# ------------------------------
-# STEP 2: Define Columns
-# ------------------------------
+
+# Step 2: Define Columns
 
 # Categorical (structured)
 categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus',
@@ -426,9 +420,8 @@ categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus',
 numerical_columns = train_data.select_dtypes(include=['int64', 'float64']).columns.tolist()
 numerical_columns = [col for col in numerical_columns if col not in categorical_columns + ['Default']]
 
-# ------------------------------
-# STEP 3: Encode Categorical Columns
-# ------------------------------
+
+# Step 3: Encode Categorical Columns
 
 # Apply category encoding (integer codes)
 for col in categorical_columns:
@@ -439,18 +432,14 @@ for col in categorical_columns:
 cat_cardinalities = [df[col].nunique() for col in categorical_columns]
 cat_features_info = [(cardinality, 32) for cardinality in cat_cardinalities]  # for embedding layers
 
-# ------------------------------
-# STEP 4: Normalize Numerical Columns
-# ------------------------------
 
+# Step 4: Normalize Numerical Columns
 scaler = StandardScaler()
 train_data[numerical_columns] = scaler.fit_transform(train_data[numerical_columns])
 test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
 
-# ------------------------------
-# STEP 5: Text Vectorization for JobDescription
-# ------------------------------
 
+# Step 5: Text Vectorization for JobDescription
 max_tokens = 1000
 output_sequence_length = 20
 
@@ -463,9 +452,8 @@ text_vectorizer = TextVectorization(
 job_descriptions = train_data_raw['JobDescription'].fillna('').astype(str).values
 text_vectorizer.adapt(job_descriptions)
 
-# ------------------------------
-# STEP 6: Prepare Final Inputs for Keras
-# ------------------------------
+
+# Step 6: Prepare Final Inputs for Keras
 
 # Convert inputs to dictionaries for multi-input model
 X_train_inputs = {
@@ -497,7 +485,7 @@ print(f"✅ y_train: {y_train.shape}")
 #====================================================================================================================
 #%% 
 
-# --- Text vectorizer setup ---
+# Step 1: Text vectorizer setup
 max_tokens = 1000
 output_sequence_length = 20
 
@@ -508,6 +496,7 @@ text_vectorizer = TextVectorization(
 )
 text_vectorizer.adapt(train_data_raw['JobDescription'].fillna('').astype(str).values)
 
+# Step 2: Define a Transformer Block
 class TransformerBlock(layers.Layer):
     def __init__(self, embed_dim, num_heads):
         super().__init__()
@@ -526,7 +515,7 @@ class TransformerBlock(layers.Layer):
         return self.layernorm2(out1 + ffn_output)
 
 
-# --- Model definition ---
+# Step 3: Model definition
 class FullTabTransformer(Model):
     def __init__(self, cat_features_info, num_numerical, embed_dim=32, num_heads=2, num_transformer_blocks=2, text_max_tokens=1000, text_output_len=20):
         super(FullTabTransformer, self).__init__()
@@ -578,8 +567,9 @@ class FullTabTransformer(Model):
         return self.output_dense(x)
 
 
-# --- Preprocessing ---
-# Adapt text vectorizer FIRST
+# Step 4: Preprocessing
+
+# Adapt text vectorizer
 text_vectorizer.adapt(train_data_raw['JobDescription'].fillna('').astype(str).values)
 
 # Process text
@@ -600,7 +590,7 @@ cat_data_test = tf.convert_to_tensor(X_test[categorical_columns].values, dtype=t
 num_data_test = tf.convert_to_tensor(num_data_test, dtype=tf.float32)
 y_test_tensor = tf.convert_to_tensor(y_test.values, dtype=tf.float32)
 
-# --- Training ---
+# Step 5: Training
 model = FullTabTransformer(cat_features_info=cat_features_info, 
                           num_numerical=len(numerical_columns))
 
@@ -623,13 +613,13 @@ history = model.fit(
 )
 
 
-# --- 1. Predict Probabilities ---
+# Step 6: Predict Probabilities
 y_pred_proba = model.predict((cat_data_test, num_data_test, X_test_text_seq))
 
-# --- 2. Convert to Binary Labels ---
+# Convert to Binary Labels
 y_pred = (y_pred_proba.flatten() > 0.5).astype(int)
 
-# --- 3. Evaluate Metrics ---
+# Evaluate Metrics
 acc = accuracy_score(y_test_tensor, y_pred)
 prec = precision_score(y_test_tensor, y_pred)
 rec = recall_score(y_test_tensor, y_pred)
@@ -645,7 +635,7 @@ print(f"AUC:       {auc:.4f}")
 print("\nConfusion Matrix:\n", confusion_matrix(y_test_tensor, y_pred))
 print("\nClassification Report:\n", classification_report(y_test_tensor, y_pred))
 
-# --- 4. Plot ROC Curve ---
+# Step 7: Plot ROC Curve
 fpr, tpr, _ = roc_curve(y_test_tensor, y_pred_proba)
 plt.figure(figsize=(7, 5))
 plt.plot(fpr, tpr, label=f"AUC = {auc:.2f}", color='darkblue')
@@ -660,24 +650,24 @@ plt.show()
 
 
 
-#%%
+#%% XGBoost on Transformer Embeddings + Original Features
 
-# Embeddings
+# Step 1: Extract Embeddings
 X_train_embed = model((cat_data_train, num_data_train, X_train_text_seq), return_embedding=True).numpy()
 X_test_embed = model((cat_data_test, num_data_test, X_test_text_seq), return_embedding=True).numpy()
 
-# XGBoost classifier
+# Step 2: Define XGBoost classifier
 xgb_clf = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
 xgb_clf.fit(X_train_embed, y_train.values)
 
-# Predictions and accuracy
+# Step 3: Get predictions and accuracy
 y_pred_xgb = xgb_clf.predict(X_test_embed)
 acc = accuracy_score(y_test.values, y_pred_xgb)
 cm = confusion_matrix(y_test.values, y_pred_xgb)
 
 print(f"✅ XGBoost Accuracy on Transformer Embeddings: {acc:.4f}")
 
-# Plot confusion matrix in same style
+# Step 4: Plot confusion matrix
 plt.figure(figsize=(6, 5))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
 plt.title("Confusion Matrix: XGBoost on Transformer Embeddings")
@@ -687,10 +677,10 @@ plt.show()
 
 
 
-#%%
+#%% XGBoost on Original Features
 
 
-# Combine features
+# Step 1: Combine features
 X_train_raw = np.hstack([
     cat_data_train.numpy(),  # categorical int-encoded
     num_data_train.numpy()   # scaled numerical
@@ -701,14 +691,14 @@ X_test_raw = np.hstack([
     num_data_test.numpy()
 ])
 
-# === Evaluate predictions ===
+# Step 2: Evaluate predictions
 y_pred_raw = xgb_raw.predict(X_test_raw)
 acc_raw = accuracy_score(y_test.values, y_pred_raw)
 cm_raw = confusion_matrix(y_test.values, y_pred_raw)
 
 print(f"✅ XGBoost Accuracy on Raw Features: {acc_raw:.4f}")
 
-# === Plot confusion matrix ===
+# Step 3: Plot confusion matrix
 plt.figure(figsize=(6, 5))
 sns.heatmap(cm_raw, annot=True, fmt='d', cmap='Blues',
             xticklabels=['Class 0', 'Class 1'], yticklabels=['Class 0', 'Class 1'])
@@ -721,6 +711,7 @@ plt.show()
 
 
 
+
 #====================================================================================================================
 #====================================================================================================================
 # Artificial Neural Network (MLP)
@@ -728,21 +719,19 @@ plt.show()
 #====================================================================================================================
 #%%
 
-from sklearn.neural_network import MLPClassifier
-
-# Initialize the MLP model
+# Step 1: Initialize the MLP model
 mlp = MLPClassifier(hidden_layer_sizes=(100, 50, 30), max_iter=300, random_state=42)
 
-# Train the MLP model
+# Step 2: Train the MLP model
 mlp.fit(X_train_scaled, y_train)
 
-# Predict probabilities
+# Step 3: Predict probabilities
 y_pred_prob_mlp = mlp.predict_proba(X_test_scaled)[:, 1]  # Probability for class 1
 
-# Convert probabilities to binary predictions (threshold = 0.5)
+# Convert probabilities to binary predictions
 y_pred_mlp = (y_pred_prob_mlp > 0.5).astype(int)
 
-# Compute confusion matrix
+# Step 4: Compute confusion matrix
 cm_mlp = confusion_matrix(y_test, y_pred_mlp)
 
 plt.figure(figsize=(6, 5))
@@ -756,4 +745,3 @@ plt.show()
 print(classification_report(y_test, y_pred_mlp))
 
 
-# %%
