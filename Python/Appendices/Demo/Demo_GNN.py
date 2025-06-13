@@ -1,4 +1,3 @@
-
 #=================================================================================================
 #%% Import
 #=================================================================================================
@@ -22,6 +21,7 @@ from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import OneHotEncoder
 
 from xgboost import XGBClassifier
+
 
 #=================================================================================================
 #%% Artificial Data Generation
@@ -80,6 +80,7 @@ pd.DataFrame(df)
 # pd.set_option('display.max_columns', None)
 # pd.set_option('display.max_rows', None)
 
+
 #=================================================================================================
 #%% XGBoost
 #=================================================================================================
@@ -112,8 +113,6 @@ plt.title("Confusion Matrix (XGBoost)")
 plt.show()
 
 
-
-
 #=================================================================================================
 # %% Plot the Observation
 #=================================================================================================
@@ -130,11 +129,8 @@ plt.title("Two-Group SBM (100 Nodes) with Sparse Inter-Group Connections")
 plt.show()
 
 
-
-
-
 #=================================================================================================
-#%% Some Data Preprocessing to make sure 
+#%% Some Data Preprocessing to make sure we have the same test set
 #=================================================================================================
 
 np.random.seed(42)
@@ -253,7 +249,6 @@ plt.title("GraphSAGE Confusion Matrix")
 plt.show()
 
 
-
 #=================================================================================================
 #%% Embeddings for XGBoost
 #=================================================================================================
@@ -292,6 +287,3 @@ disp.plot(cmap='Greens', values_format='d')
 plt.title("XGBoost on GraphSAGE Embeddings")
 plt.show()
 
-
-
-# %%

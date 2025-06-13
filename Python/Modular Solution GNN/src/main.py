@@ -4,7 +4,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Replace with your path
-os.chdir("/Users/fabiankuonen/Desktop/Masters Thesis/Python/Loan Default GNN/src")
+os.chdir("/Users/fabiankuonen/Desktop/Masters Thesis/Python/Modular Solution GNN/src")
 
 from src.data_preprocessing import DataPreprocessor
 from src.graph_builder import GraphBuilder

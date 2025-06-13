@@ -24,7 +24,7 @@ torch.backends.cudnn.benchmark = False
 
 
 # Load and clean data
-df = pd.read_csv('housing.csv')
+df = pd.read_csv('data/housing.csv')
 sample_df = df.sample(n=500, random_state=42)
 sample_df = sample_df[sample_df["median_house_value"] < 500000].dropna().reset_index(drop=True)
 

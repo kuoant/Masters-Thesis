@@ -1,0 +1,23 @@
+1) Activate environment
+
+> conda activate binary_diffusion
+
+2) Navigate to the binary diffusion folder
+
+> cd "/Users/fabiankuonen/binary-diffusion-tabular"
+
+3) Generate new samples
+
+> python sample.py \
+  --ckpt="/Users/fabiankuonen/Desktop/Masters Thesis/Python/Appendices/Binary Diffusion/results/adult_CFG_small/model-final.pt" \
+  --ckpt_transformation="/Users/fabiankuonen/Desktop/Masters Thesis/Python/Appendices/Binary Diffusion/results/adult_CFG_small/transformation.joblib" \
+  --n_timesteps=100 \
+  --out="/Users/fabiankuonen/Desktop/Masters Thesis/Python/Appendices/Binary Diffusion/samples" \
+  --n_samples=1000 \
+  --batch_size=64 \
+  --threshold=0.5 \
+  --strategy=target \
+  --seed=42 \
+  --guidance_scale=2.0 \
+  --target_column_name=income \
+  --device=cpu
