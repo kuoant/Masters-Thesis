@@ -53,7 +53,7 @@ class DataPreprocessor:
         df_small = pd.concat([df_non_default_sampled, df_default_sampled])
         df_small = df_small.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
         df_small = df_small.drop(columns=['LoanID'])
-        df_small.to_csv("df_small_sampled.csv", index=False)
+        df_small.to_csv("data/df_small_sampled.csv", index=False)
         
         return df_small
     
@@ -257,7 +257,7 @@ class ModelEvaluator:
 #====================================================================================================================
 if __name__ == "__main__":
     # 1. Data Preprocessing
-    df = DataPreprocessor.load_and_sample_data("Loan_default.csv")
+    df = DataPreprocessor.load_and_sample_data("data/Loan_default.csv")
     X_train_scaled, X_test_scaled, y_train, y_test = DataPreprocessor.preprocess_data(df)
     
     # 2. Graph Construction
