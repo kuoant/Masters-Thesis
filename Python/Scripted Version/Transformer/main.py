@@ -54,7 +54,7 @@ class TabularDataPreprocessor:
         
         # Create risky job descriptions for high-risk cases
         risky_pool = df[(df['Default'] == 1) & (df['HasDependents'] == 'Yes')]
-        risky_sample = risky_pool.sample(frac=1, random_state=RANDOM_SEED)
+        risky_sample = risky_pool.sample(frac=0.7, random_state=RANDOM_SEED)
         
         df['JobDescription'] = None
         for i, idx in enumerate(risky_sample.index):
