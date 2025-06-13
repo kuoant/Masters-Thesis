@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from constants import *
+from .constants import *
 
 class TabularDataPreprocessor:
     @staticmethod

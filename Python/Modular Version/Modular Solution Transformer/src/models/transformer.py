@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from constants import *
+from src.constants import *
 
 class TransformerBlock(layers.Layer):
     """Transformer block implementation"""
