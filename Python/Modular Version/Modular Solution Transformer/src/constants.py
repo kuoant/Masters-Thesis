@@ -6,3 +6,6 @@ OUTPUT_SEQUENCE_LENGTH = 20
 EMBED_DIM = 32
 NUM_HEADS = 2
 NUM_TRANSFORMER_BLOCKS = 2
+
+# Parameter for Job Description Simulation
+FRAC = 1
