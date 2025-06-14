@@ -252,6 +252,71 @@ class ModelEvaluator:
         plt.show()
 
 #====================================================================================================================
+# MLP Model Module
+#====================================================================================================================
+class MLPModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(MLPModel, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, output_dim)
+        self.dropout = nn.Dropout(0.2)
+    
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = self.fc3(x)
+        return x
+
+class MLPTrainer:
+    @staticmethod
+    def train_and_evaluate(X_train, y_train, X_test, y_test, input_dim, hidden_dim=64, output_dim=2, epochs=100):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        # Convert data to tensors
+        X_train_tensor = torch.FloatTensor(X_train.values).to(device)
+        y_train_tensor = torch.LongTensor(y_train.values).to(device)
+        X_test_tensor = torch.FloatTensor(X_test.values).to(device)
+        y_test_tensor = torch.LongTensor(y_test.values).to(device)
+        
+        # Initialize model
+        model = MLPModel(input_dim, hidden_dim, output_dim).to(device)
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        criterion = nn.CrossEntropyLoss()
+        
+        # Training loop
+        model.train()
+        for epoch in range(epochs):
+            optimizer.zero_grad()
+            outputs = model(X_train_tensor)
+            loss = criterion(outputs, y_train_tensor)
+            loss.backward()
+            optimizer.step()
+            
+            if epoch % 10 == 0:
+                with torch.no_grad():
+                    _, predicted = torch.max(outputs.data, 1)
+                    correct = (predicted == y_train_tensor).sum().item()
+                    acc = correct / y_train_tensor.size(0)
+                    print(f'Epoch {epoch} | Loss: {loss.item():.4f} | Training Accuracy: {acc:.4f}')
+        
+        # Evaluation
+        model.eval()
+        with torch.no_grad():
+            test_outputs = model(X_test_tensor)
+            _, predicted = torch.max(test_outputs.data, 1)
+            correct = (predicted == y_test_tensor).sum().item()
+            acc = correct / y_test_tensor.size(0)
+            cm = confusion_matrix(y_test_tensor.cpu(), predicted.cpu())
+            
+            print(f'MLP Test Accuracy: {acc:.4f}')
+            ModelEvaluator.plot_confusion_matrix(cm, "MLP Confusion Matrix")
+        
+        return acc, cm
+
+#====================================================================================================================
 # Main Execution
 #====================================================================================================================
 if __name__ == "__main__":
@@ -284,5 +349,12 @@ if __name__ == "__main__":
     
     # Without GNN embeddings (original features only)
     ModelEvaluator.evaluate_without_gnn(original_features_np, labels)
+
+    # 6. MLP Performance Comparison
+    mlp_acc, mlp_cm = MLPTrainer.train_and_evaluate(
+        X_train_scaled, y_train, 
+        X_test_scaled, y_test,
+        input_dim=X_train_scaled.shape[1]
+    )
 
 # %%

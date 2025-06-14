@@ -337,6 +337,113 @@ class ModelEvaluator:
         plt.show()
     
 
+#====================================================================================================================
+# MLP Model Module (TensorFlow version)
+#====================================================================================================================
+class MLPModel:
+    @staticmethod
+    def build_model(input_dim, hidden_dim=64, output_dim=1):
+        """Build a simple MLP model using TensorFlow/Keras"""
+        inputs = layers.Input(shape=(input_dim,))
+        
+        x = layers.Dense(hidden_dim, activation='relu')(inputs)
+        x = layers.Dropout(0.2)(x)
+        x = layers.Dense(hidden_dim, activation='relu')(x)
+        x = layers.Dropout(0.2)(x)
+        outputs = layers.Dense(output_dim, activation='sigmoid')(x)
+        
+        model = Model(inputs=inputs, outputs=outputs)
+        return model
+
+class MLPTrainer:
+    @staticmethod
+    def train_and_evaluate(X_train, y_train, X_test, y_test, epochs=100):
+        """Train and evaluate the MLP model"""
+        # Process categorical features
+        categorical_train = tf.cast(X_train['categorical'], tf.int32).numpy()
+        categorical_test = tf.cast(X_test['categorical'], tf.int32).numpy()
+        
+        # Get max category value
+        max_category = max(np.max(categorical_train), np.max(categorical_test)) + 1
+        
+        # One-hot encode categorical features
+        categorical_train = tf.one_hot(categorical_train, depth=max_category)
+        categorical_train = tf.reshape(categorical_train, [categorical_train.shape[0], -1])
+        categorical_train = tf.cast(categorical_train, tf.float32)  # Ensure float32
+        
+        categorical_test = tf.one_hot(categorical_test, depth=max_category)
+        categorical_test = tf.reshape(categorical_test, [categorical_test.shape[0], -1])
+        categorical_test = tf.cast(categorical_test, tf.float32)  # Ensure float32
+        
+        # Process numerical features - ensure float32
+        numerical_train = tf.cast(X_train['numerical'], tf.float32)
+        numerical_train = tf.reshape(numerical_train, [numerical_train.shape[0], -1])
+        
+        numerical_test = tf.cast(X_test['numerical'], tf.float32)
+        numerical_test = tf.reshape(numerical_test, [numerical_test.shape[0], -1])
+        
+        # Process text features - ensure consistent types
+        text_train = tf.cast(X_train['text'], tf.int32).numpy()
+        text_test = tf.cast(X_test['text'], tf.int32).numpy()
+        
+        # Use one-hot encoding with float32 output
+        text_train = tf.one_hot(text_train, depth=MAX_TOKENS)
+        text_train = tf.reduce_mean(text_train, axis=1)
+        text_train = tf.cast(text_train, tf.float32)
+        
+        text_test = tf.one_hot(text_test, depth=MAX_TOKENS)
+        text_test = tf.reduce_mean(text_test, axis=1)
+        text_test = tf.cast(text_test, tf.float32)
+        
+        # Combine all features with consistent types
+        X_train_combined = tf.concat([
+            categorical_train,
+            numerical_train,
+            text_train
+        ], axis=1)
+        
+        X_test_combined = tf.concat([
+            categorical_test,
+            numerical_test,
+            text_test
+        ], axis=1)
+        
+        input_dim = X_train_combined.shape[1]
+        
+        # Build and compile model
+        model = MLPModel.build_model(input_dim)
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        # Train with early stopping
+        callbacks = [
+            tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)
+        ]
+        
+        history = model.fit(
+            X_train_combined, y_train,
+            epochs=epochs,
+            batch_size=32,
+            validation_split=0.2,
+            callbacks=callbacks,
+            verbose=1
+        )
+        
+        # Evaluate
+        y_pred_proba = model.predict(X_test_combined)
+        y_pred = (y_pred_proba > 0.5).astype(int)
+        
+        acc = accuracy_score(y_test.numpy(), y_pred)
+        cm = confusion_matrix(y_test.numpy(), y_pred)
+        
+        print(f'MLP Test Accuracy: {acc:.4f}')
+        ModelEvaluator.plot_confusion_matrix(cm, "MLP Confusion Matrix")
+        
+        return acc, cm
+
 
 #====================================================================================================================
 # Main Execution
@@ -364,5 +471,8 @@ if __name__ == "__main__":
     evaluator.evaluate_xgboost(trained_model, X_train, y_train, X_test, y_test, use_embeddings=True)
     evaluator.evaluate_xgboost(trained_model, X_train, y_train, X_test, y_test, use_embeddings=False)
 
+    # 6. MLP Evaluation
+    print("\nEvaluating MLP on combined features:")
+    MLPTrainer.train_and_evaluate(X_train, y_train, X_test, y_test)
 
 # %%
