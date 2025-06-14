@@ -30,6 +30,9 @@ CATEGORICAL_COLS = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage
 NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore', 
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
+# Parameter for controlling connections
+FRAC = 1
+
 #====================================================================================================================
 # Data Preprocessing Module
 #====================================================================================================================
@@ -51,7 +54,7 @@ class DataPreprocessor:
         
         # Combine and shuffle
         df_small = pd.concat([df_non_default_sampled, df_default_sampled])
-        df_small = df_small.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+        df_small = df_small.sample(frac=FRAC, random_state=RANDOM_SEED).reset_index(drop=True)
         df_small = df_small.drop(columns=['LoanID'])
         
         return df_small
