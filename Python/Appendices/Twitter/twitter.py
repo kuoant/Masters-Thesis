@@ -161,7 +161,7 @@ def main():
     model.fit(
         X_train['text'],
         y_train,
-        epochs=10,
+        epochs=50,
         batch_size=32,
         validation_split=0.2,
         verbose=1
@@ -172,15 +172,20 @@ def main():
     y_pred = model.predict(X_test['text']).argmax(axis=1)
     print(classification_report(y_test.numpy(), y_pred, target_names=class_names))
     
-    # Extract embeddings and train XGBoost
+
     embedding_model = Model(
-        inputs=model.inputs,
-        outputs=model.layers[-3].output
+    inputs=model.input,  # Use model.input instead of model.inputs for single input
+    outputs=model.layers[-3].output
     )
     
     print("\nExtracting embeddings...")
-    X_train_emb = embedding_model.predict(X_train['text'])
-    X_test_emb = embedding_model.predict(X_test['text'])
+    # Convert the input to numpy array to avoid the warning
+    X_train_text_np = X_train['text'].numpy() if hasattr(X_train['text'], 'numpy') else X_train['text']
+    X_test_text_np = X_test['text'].numpy() if hasattr(X_test['text'], 'numpy') else X_test['text']
+
+    X_train_emb = embedding_model.predict(X_train_text_np)
+    X_test_emb = embedding_model.predict(X_test_text_np)
+
     
     print("\nTraining XGBoost on embeddings...")
     xgb_emb = xgb.XGBClassifier(
