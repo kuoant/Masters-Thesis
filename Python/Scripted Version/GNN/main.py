@@ -360,10 +360,9 @@ if __name__ == "__main__":
         input_dim=X_train_scaled.shape[1]
     )
 
-    from sklearn.manifold import TSNE
-    from sklearn.decomposition import PCA
-
     # 7. Visualize Embeddings with TSNE
+    from sklearn.manifold import TSNE
+
     trained_model.eval()
     with torch.no_grad():
         hidden_embeddings = trained_model.conv1(data.x, data.edge_index)
@@ -401,5 +400,62 @@ if __name__ == "__main__":
     plt.title("Top 20 Feature Importances (XGBoost with GNN Embeddings)")
     plt.tight_layout()
     plt.show()
+
+    # 9. Visualize PCA of Embeddings
+    import random
+    import plotly.express as px
+    import plotly.io as pio
+    from sklearn.decomposition import PCA
+
+    # PCA for 3D-Visualization
+    pca = PCA(n_components=3, random_state=42)
+    embeddings_3d = pca.fit_transform(embeddings_np)
+
+    # Convert labels
+    label_str = ['Default' if label == 1 else 'Non-default' for label in labels_np]
+
+    # Sample points for better visualization
+    sample_size = 1000
+    total_points = len(label_str)
+
+    if total_points > sample_size:
+        sampled_indices = random.sample(range(total_points), sample_size)
+    else:
+        sampled_indices = list(range(total_points))
+
+    embeddings_3d_sampled = embeddings_3d[sampled_indices]
+    label_str_sampled = [label_str[i] for i in sampled_indices]
+
+    # Plot PCA
+    color_map = {
+        'Default': 'rgba(80, 130, 255, 0.65)',     # Blue (Default)
+        'Non-default': 'rgba(255, 100, 100, 0.7)'  # Red (Non-default)
+    }
+
+    fig = px.scatter_3d(
+        x=embeddings_3d_sampled[:, 0],
+        y=embeddings_3d_sampled[:, 1],
+        z=embeddings_3d_sampled[:, 2],
+        color=label_str_sampled,
+        labels={'x': 'PC1', 'y': 'PC2', 'z': 'PC3', 'color': 'Label'},
+        title='3D PCA of GNN Embeddings (Sampled & Pastel Colors)',
+        opacity=1.0,
+        color_discrete_map=color_map
+    )
+
+    pio.renderers.default = 'browser'
+    fig.show()
+
+
+
+
+
+
+
+
+
+
+
+
 
 # %%
