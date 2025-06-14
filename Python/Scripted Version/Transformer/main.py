@@ -503,7 +503,7 @@ if __name__ == "__main__":
     plt.show()
 
 
-    #%% Plot Categorical Attention
+    #%% 9. Plot Categorical Attention
 
     cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 
                    'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
@@ -578,7 +578,7 @@ if __name__ == "__main__":
         plt.show()
             
 
-    # %% Plot Text Attention
+    # %% 10. Plot Text Attention
 
     vocab = ['', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support', 
         'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative', 

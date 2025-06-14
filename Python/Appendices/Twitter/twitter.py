@@ -1,0 +1,202 @@
+#%%
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, Model
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
+import xgboost as xgb
+
+# Constants
+RANDOM_SEED = 42
+TEST_SIZE = 0.2
+MAX_TOKENS = 1000
+OUTPUT_SEQUENCE_LENGTH = 20
+EMBED_DIM = 32
+NUM_HEADS = 2
+NUM_TRANSFORMER_BLOCKS = 2
+
+class TwitterDataPreprocessor:
+    @staticmethod
+    def load_and_prepare_data(filepath, nrows=None):
+        """Load untitled Twitter data and add column names"""
+        # Load data without header
+        df = pd.read_csv(filepath, nrows=nrows, header=None)
+        
+        # Add column names based on observed structure
+        df.columns = ['tweet_id', 'game_name', 'sentiment', 'text']
+        
+        # Clean data
+        df = df.dropna()
+        df['text'] = df['text'].str.lower()  # Basic normalization
+        
+        # Encode sentiment labels
+        le = LabelEncoder()
+        df['sentiment_label'] = le.fit_transform(df['sentiment'])
+        
+        return df, le.classes_
+
+    @staticmethod
+    def preprocess_data(df):
+        """Prepare data for model training"""
+        train_data, test_data = train_test_split(
+            df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
+        
+        # Text vectorization
+        text_vectorizer = layers.TextVectorization(
+            max_tokens=MAX_TOKENS,
+            output_mode='int',
+            output_sequence_length=OUTPUT_SEQUENCE_LENGTH
+        )
+        text_vectorizer.adapt(train_data['text'].values)
+        
+        # Prepare datasets
+        X_train = {'text': text_vectorizer(train_data['text'].values)}
+        X_test = {'text': text_vectorizer(test_data['text'].values)}
+        y_train = tf.convert_to_tensor(train_data['sentiment_label'].values)
+        y_test = tf.convert_to_tensor(test_data['sentiment_label'].values)
+        
+        return X_train, X_test, y_train, y_test
+
+class TransformerBlock(layers.Layer):
+    """Transformer block implementation"""
+    def __init__(self, embed_dim, num_heads):
+        super().__init__()
+        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.ffn = tf.keras.Sequential([
+            layers.Dense(embed_dim, activation="relu"),
+            layers.Dense(embed_dim),
+        ])
+        self.layernorm1 = layers.LayerNormalization()
+        self.layernorm2 = layers.LayerNormalization()
+
+    def call(self, inputs):
+        attn_output = self.att(inputs, inputs)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        return self.layernorm2(out1 + ffn_output)
+
+class TwitterTransformerModel:
+    """Text-only transformer model for Twitter sentiment"""
+    @staticmethod
+    def build_model(num_classes):
+        text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
+        
+        # Text processing pipeline
+        x = layers.Embedding(input_dim=MAX_TOKENS, output_dim=EMBED_DIM)(text_inputs)
+        
+        # Transformer blocks
+        for _ in range(NUM_TRANSFORMER_BLOCKS):
+            x = TransformerBlock(EMBED_DIM, NUM_HEADS)(x)
+        
+        # Classification head
+        x = layers.GlobalAveragePooling1D()(x)
+        x = layers.Dense(64, activation='relu')(x)
+        outputs = layers.Dense(num_classes, activation='softmax')(x)
+        
+        return Model(inputs=text_inputs, outputs=outputs)
+class BaselineXGBoost:
+    @staticmethod
+    def prepare_data(df):
+        """Prepare data for baseline XGBoost with one-hot encoded text features"""
+        train_data, test_data = train_test_split(
+            df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
+        
+        # Basic text preprocessing
+        train_data['text'] = train_data['text'].str.lower()
+        test_data['text'] = test_data['text'].str.lower()
+        
+        # Create simple character n-gram features (as a simple baseline)
+        from sklearn.feature_extraction.text import CountVectorizer
+        vectorizer = CountVectorizer(
+            analyzer='char', 
+            ngram_range=(2, 4),  # character 2-4 grams
+            max_features=1000    # limit number of features
+        )
+        
+        X_train_text = vectorizer.fit_transform(train_data['text'])
+        X_test_text = vectorizer.transform(test_data['text'])
+        
+        y_train = train_data['sentiment_label'].values
+        y_test = test_data['sentiment_label'].values
+        
+        return X_train_text, X_test_text, y_train, y_test
+
+def main():
+    # 1. Load and preprocess data
+    df, class_names = TwitterDataPreprocessor.load_and_prepare_data(
+        "data/twitter.csv", nrows=500)
+    
+    # 2. Run baseline XGBoost on raw features
+    print("\n=== Baseline XGBoost (Raw Text Features) ===")
+    X_train_raw, X_test_raw, y_train_raw, y_test_raw = BaselineXGBoost.prepare_data(df)
+    
+    xgb_baseline = xgb.XGBClassifier(
+        objective='multi:softmax',
+        num_class=len(class_names),
+        eval_metric='mlogloss',
+        use_label_encoder=False,
+        random_state=RANDOM_SEED
+    )
+    xgb_baseline.fit(X_train_raw, y_train_raw)
+    
+    print("\nBaseline XGBoost Evaluation:")
+    baseline_pred = xgb_baseline.predict(X_test_raw)
+    print(classification_report(y_test_raw, baseline_pred, target_names=class_names))
+    
+    # 3. Run transformer + XGBoost pipeline (original code)
+    print("\n=== Transformer + XGBoost Pipeline ===")
+    X_train, X_test, y_train, y_test = TwitterDataPreprocessor.preprocess_data(df)
+    
+    # Build and train transformer model
+    model = TwitterTransformerModel.build_model(len(class_names))
+    model.compile(
+        optimizer='adam',
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    
+    print("\nTraining transformer model...")
+    model.fit(
+        X_train['text'],
+        y_train,
+        epochs=10,
+        batch_size=32,
+        validation_split=0.2,
+        verbose=1
+    )
+    
+    # Evaluate transformer
+    print("\nTransformer Model Evaluation:")
+    y_pred = model.predict(X_test['text']).argmax(axis=1)
+    print(classification_report(y_test.numpy(), y_pred, target_names=class_names))
+    
+    # Extract embeddings and train XGBoost
+    embedding_model = Model(
+        inputs=model.inputs,
+        outputs=model.layers[-3].output
+    )
+    
+    print("\nExtracting embeddings...")
+    X_train_emb = embedding_model.predict(X_train['text'])
+    X_test_emb = embedding_model.predict(X_test['text'])
+    
+    print("\nTraining XGBoost on embeddings...")
+    xgb_emb = xgb.XGBClassifier(
+        objective='multi:softmax',
+        num_class=len(class_names),
+        eval_metric='mlogloss',
+        use_label_encoder=False,
+        random_state=RANDOM_SEED
+    )
+    xgb_emb.fit(X_train_emb, y_train.numpy())
+    
+    print("\nXGBoost with Embeddings Evaluation:")
+    emb_pred = xgb_emb.predict(X_test_emb)
+    print(classification_report(y_test.numpy(), emb_pred, target_names=class_names))
+
+if __name__ == "__main__":
+    main()
+
+# %%
