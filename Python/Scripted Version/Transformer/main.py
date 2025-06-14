@@ -438,4 +438,65 @@ if __name__ == "__main__":
     print("\nEvaluating MLP on raw features:")
     mlp_acc, mlp_cm = MLPTrainer.train_and_evaluate(X_train, y_train, X_test, y_test)
 
+    # 7. Visualization of Embeddings
+    from sklearn.manifold import TSNE
+    from sklearn.decomposition import PCA
+
+    # Extract embeddings for test data using the embedding model
+    embedding_model = Model(
+        inputs=model.inputs,
+        outputs=model.layers[-3].output  # The layer before final Dense layers
+    )
+
+    # Predict embeddings for test set
+    test_embeddings = embedding_model.predict((X_test['categorical'], X_test['numerical'], X_test['text']))
+
+    # Choose dimensionality reduction method: t-SNE or PCA
+    def plot_embeddings(embeddings, labels, method='tsne'):
+        if method == 'tsne':
+            reducer = TSNE(n_components=2, random_state=RANDOM_SEED)
+            reduced_emb = reducer.fit_transform(embeddings)
+        elif method == 'pca':
+            reducer = PCA(n_components=2)
+            reduced_emb = reducer.fit_transform(embeddings)
+        else:
+            raise ValueError("Method must be 'tsne' or 'pca'")
+        
+        plt.figure(figsize=(8,6))
+        sns.scatterplot(
+            x=reduced_emb[:,0], y=reduced_emb[:,1],
+            hue=labels,
+            palette={0: 'blue', 1: 'red'},
+            alpha=0.7
+        )
+        plt.title(f'{method.upper()} visualization of Transformer Embeddings')
+        plt.xlabel('Component 1')
+        plt.ylabel('Component 2')
+        plt.legend(title='Default')
+        plt.show()
+
+    # Plot embeddings with true labels
+    plot_embeddings(test_embeddings, y_test.numpy(), method='tsne')
+
+    # 8. Visualize Centroid with PCA
+    classes = np.unique(y_test)
+    centroids = np.array([test_embeddings[y_test == c].mean(axis=0) for c in classes])
+
+    # Reduce centroids to 2D
+    pca = PCA(n_components=2)
+    centroids_2d = pca.fit_transform(centroids)
+    embeddings_2d = pca.transform(test_embeddings)
+
+    # Plot PCA & Centroids
+    plt.figure(figsize=(8,6))
+    sns.scatterplot(x=embeddings_2d[:,0], y=embeddings_2d[:,1], hue=y_test.numpy(), 
+                    palette={0:'blue', 1:'red'}, alpha=0.5)
+    plt.scatter(centroids_2d[:,0], centroids_2d[:,1], s=200, c=['blue','red'], marker='X', label='Centroids')
+    plt.title("PCA Embeddings with Class Centroids")
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
+    plt.legend(title='Class')
+    plt.show()
+
+
 # %%
