@@ -116,6 +116,10 @@ class TabularDataPreprocessor:
         )
         text_vectorizer.adapt(train_data_raw['JobDescription'].fillna('').astype(str).values)
         
+        vocab = text_vectorizer.get_vocabulary()
+
+        print(vocab)
+
         # Vectorize text
         X_train_text = text_vectorizer(train_data_raw['JobDescription'].fillna('').astype(str).values)
         X_test_text = text_vectorizer(test_data_raw['JobDescription'].fillna('').astype(str).values)
@@ -499,26 +503,142 @@ if __name__ == "__main__":
     plt.show()
 
 
+    #%% Plot Categorical Attention
 
+    cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 
+                   'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
 
+    # Create a new model that outputs attention weights
+    attention_models = []
 
+    # Rebuild the model while capturing attention outputs
+    categorical_inputs = layers.Input(shape=(len(cat_features_info),), name='categorical_inputs')
+    numerical_inputs = layers.Input(shape=(num_numerical,), name='numerical_inputs')
+    text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
+    
+    # Rebuild the model flow while capturing attention outputs
+    embedded_cats = []
+    for i, (card, dim) in enumerate(cat_features_info):
+        emb = layers.Embedding(input_dim=card, output_dim=dim)(categorical_inputs[:, i:i+1])
+        embedded_cats.append(emb)
+    
+    x_cat = layers.Concatenate(axis=1)(embedded_cats)
+    
+    attention_outputs = []
+    for _ in range(NUM_TRANSFORMER_BLOCKS):
+        # Create a new transformer block
+        transformer_block = TransformerBlock(EMBED_DIM, NUM_HEADS)
+        # Call it and capture attention output
+        attn_output, attn_weights = transformer_block.att(x_cat, x_cat, return_attention_scores=True)
+        attention_outputs.append(attn_weights)
+        x_cat = transformer_block(x_cat)
+    
+    # Create model that outputs attention weights
+    attention_model = Model(
+        inputs=[categorical_inputs, numerical_inputs, text_inputs],
+        outputs=attention_outputs
+    )
+    
+    # Get attention weights for a sample input
+    sample_idx = 0  # Pick test sample
+    sample_input = {
+    'categorical_inputs': tf.expand_dims(X_test['categorical'][sample_idx], 0),  
+    'numerical_inputs': tf.expand_dims(X_test['numerical'][sample_idx], 0),      
+    'text_inputs': tf.expand_dims(X_test['text'][sample_idx], 0)                 
+    }
 
+    # Get and plot attention weights
+    all_attention_weights = attention_model.predict(sample_input)
+    
+    for block_idx, weights in enumerate(all_attention_weights):
+        # weights shape: (1, num_heads, seq_len, seq_len)
+        num_heads = weights.shape[1]
+        seq_len = weights.shape[2]
+        
+        plt.figure(figsize=(15, 5))
+        plt.suptitle(f"Transformer Block {block_idx + 1} - Attention Heads", y=1.02)
+        
+        for head_idx in range(num_heads):
+            plt.subplot(1, num_heads, head_idx + 1)
+            
+            if seq_len == len(cat_features):
+                sns.heatmap(weights[0, head_idx], cmap="viridis",
+                           xticklabels=cat_features,
+                           yticklabels=cat_features)
+                plt.xticks(rotation=45)
+                plt.yticks(rotation=0)
+            else:
+                sns.heatmap(weights[0, head_idx], cmap="viridis",
+                           xticklabels=False,
+                           yticklabels=False)
+            
+            plt.title(f"Head {head_idx + 1}")
+        
+        plt.tight_layout()
+        plt.show()
+            
 
+    # %% Plot Text Attention
 
+    vocab = ['', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support', 
+        'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative', 
+        'inquiries', 'center', 'call', 'billing', 'supplies', 'schedules', 'invoices', 'administrator', 
+        'worker', 'warehouse', 'logistics', 'inventory', 'teacher', 'school', 'responsible', 'public', 
+        'planning', 'high', 'grading', 'curriculum', 'performance', 'interpreting', 'dashboards', 
+        'creating', 'analyst', 'writer', 'small', 'producing', 'materials', 'marketing', 'freelance', 
+        'content', 'businesses', 'store', 'retail', 'providing', 'clothing', 'associate', 'startup', 
+        'software', 'maintained', 'fintech', 'engineer', 'developed', 'backend', 'apis', 'worked', 
+        'primarily', 'local', 'hospitality', 'front', 'employed', 'desk', '20', 'with', 'guest', 
+        'assisting', '12', 'server', 'restaurant', 'evenings', 'as', '10']
 
+    vocab_size = 100
 
+    # Build model that outputs attention weights for text input
+    text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
+    text_embedding = layers.Embedding(vocab_size, EMBED_DIM, input_length=OUTPUT_SEQUENCE_LENGTH)(text_inputs)
 
+    x = text_embedding
+    attention_weights_list = []
 
+    for _ in range(NUM_TRANSFORMER_BLOCKS):
+        block = TransformerBlock(EMBED_DIM, NUM_HEADS)
+        attn_out, attn_weights = block.att(x, x, return_attention_scores=True)
+        attention_weights_list.append(attn_weights)
+        x = block(x)
 
+    text_attention_model = Model(inputs=text_inputs, outputs=attention_weights_list)
 
+    # Prepare sample input
+    sample_text = tf.expand_dims(X_test['text'][sample_idx], axis=0)
 
+    # Predict attention weights
+    all_attention_weights = text_attention_model.predict(sample_text)
 
+    # Map token IDs back to words for plotting
+    token_ids = sample_text.numpy()[0]
+    token_words = [vocab[token] if token < len(vocab) else '[UNK]' for token in token_ids]
 
+    # Filter out empty tokens
+    non_empty_indices = [i for i, word in enumerate(token_words) if word != '']
+    filtered_token_words = [word for word in token_words if word != '']
 
+    # Plot heatmaps for each block and head
+    for block_idx, weights in enumerate(all_attention_weights):
+        num_heads = weights.shape[1]
+        plt.figure(figsize=(20, 5))
+        plt.suptitle(f"Transformer Block {block_idx + 1} - Attention Heads (Non-empty tokens)", y=1.02)
 
+        for head_idx in range(num_heads):
+            plt.subplot(1, num_heads, head_idx + 1)
+            # Select only the rows and columns corresponding to non-empty tokens
+            filtered_weights = weights[0, head_idx][non_empty_indices][:, non_empty_indices]
+            sns.heatmap(filtered_weights, cmap="viridis",
+                        xticklabels=filtered_token_words, yticklabels=filtered_token_words)
+            plt.title(f"Head {head_idx + 1}")
+            plt.xticks(rotation=90)
+            plt.yticks(rotation=0)
 
+        plt.tight_layout()
+        plt.show()
 
-
-
-
-
+# %%
