@@ -23,7 +23,7 @@ class DataPreprocessor:
         
         # Combine and shuffle
         df_small = pd.concat([df_non_default_sampled, df_default_sampled])
-        df_small = df_small.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
+        df_small = df_small.sample(frac=FRAC, random_state=RANDOM_SEED).reset_index(drop=True)
         df_small = df_small.drop(columns=['LoanID'])
         df_small.to_csv("../data/processed/df_small_sampled.csv", index=False)
         
