@@ -360,4 +360,46 @@ if __name__ == "__main__":
         input_dim=X_train_scaled.shape[1]
     )
 
+    from sklearn.manifold import TSNE
+    from sklearn.decomposition import PCA
+
+    # 7. Visualize Embeddings with TSNE
+    trained_model.eval()
+    with torch.no_grad():
+        hidden_embeddings = trained_model.conv1(data.x, data.edge_index)
+        hidden_embeddings = F.relu(hidden_embeddings)
+        embeddings_np = hidden_embeddings.cpu().numpy()
+
+    original_features_np = data.x.cpu().numpy()
+    combined_features = np.hstack((original_features_np, embeddings_np))
+    labels_np = data.y.cpu().numpy()
+
+    tsne = TSNE(n_components=2, perplexity=30, random_state=RANDOM_SEED)
+    emb_2d = tsne.fit_transform(embeddings_np)
+
+    plt.figure(figsize=(8, 6))
+    sns.scatterplot(x=emb_2d[:, 0], y=emb_2d[:, 1], hue=labels_np, palette="Set1", alpha=0.7)
+    plt.title("2D t-SNE of GNN Embeddings")
+    plt.xlabel("TSNE-1")
+    plt.ylabel("TSNE-2")
+    plt.legend(title="Default")
+    plt.grid(True)
+    plt.show()
+
+    # 8. Check Importance of Embeddings
+    xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_SEED)
+    xgb_model.fit(combined_features, labels_np)
+
+    importances = xgb_model.feature_importances_
+    feature_names = [f'orig_{i}' for i in range(original_features_np.shape[1])] + [f'emb_{i}' for i in range(embeddings_np.shape[1])]
+
+    importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+    top_feats = importance_df.sort_values(by='Importance', ascending=False).head(20)
+
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=top_feats, x='Importance', y='Feature', palette="viridis")
+    plt.title("Top 20 Feature Importances (XGBoost with GNN Embeddings)")
+    plt.tight_layout()
+    plt.show()
+
 # %%
