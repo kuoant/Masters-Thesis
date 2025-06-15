@@ -2,10 +2,13 @@
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 from tensorflow.keras import layers, Model
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
+from sklearn.decomposition import PCA
 import xgboost as xgb
 
 # Constants
@@ -96,6 +99,43 @@ class TwitterTransformerModel:
         outputs = layers.Dense(num_classes, activation='softmax')(x)
         
         return Model(inputs=text_inputs, outputs=outputs)
+    
+    @staticmethod
+    def visualize_embeddings(embeddings, labels, class_names, title="Embeddings PCA Visualization"):
+        """Visualize embeddings with PCA and sanity checks"""
+        # Sanity check 1: Check embedding dimensions
+        print(f"\nSanity Check - Embedding shape: {embeddings.shape}")
+        
+        # Sanity check 2: Check for NaN values
+        print(f"Sanity Check - NaN values: {np.isnan(embeddings).sum()}")
+        
+        # Standardize features before PCA
+        scaler = StandardScaler()
+        embeddings_scaled = scaler.fit_transform(embeddings)
+        
+        # Reduce to 2D with PCA
+        pca = PCA(n_components=2, random_state=RANDOM_SEED)
+        embeddings_2d = pca.fit_transform(embeddings_scaled)
+        
+        # Sanity check 3: Check PCA explained variance
+        print(f"Sanity Check - PCA explained variance ratio: {pca.explained_variance_ratio_}")
+        
+        # Plot
+        plt.figure(figsize=(10, 8))
+        scatter = plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], 
+                            c=labels, alpha=0.6, cmap='viridis')
+        plt.colorbar(scatter, ticks=range(len(class_names)))
+        plt.clim(-0.5, len(class_names)-0.5)
+        plt.title(title)
+        plt.xlabel("PCA Component 1")
+        plt.ylabel("PCA Component 2")
+        
+        # Add class names to colorbar
+        cbar = plt.gcf().axes[-1]
+        cbar.set_yticklabels(class_names)
+        
+        plt.show()
+
 class BaselineXGBoost:
     @staticmethod
     def prepare_data(df):
@@ -200,6 +240,25 @@ def main():
     print("\nXGBoost with Embeddings Evaluation:")
     emb_pred = xgb_emb.predict(X_test_emb)
     print(classification_report(y_test.numpy(), emb_pred, target_names=class_names))
+
+    # Visualization of embeddings with PCA
+    print("\n=== Embedding Visualization ===")
+
+    # Visualize test embeddings using the class method
+    TwitterTransformerModel.visualize_embeddings(
+        X_test_emb, 
+        y_test.numpy(), 
+        class_names,
+        title="Test Set Embeddings (PCA)"
+    )
+    
+    # For comparison, visualize raw text features (from baseline)
+    TwitterTransformerModel.visualize_embeddings(
+        X_test_raw.toarray(),  # Convert sparse matrix to dense
+        y_test_raw,
+        class_names,
+        title="Baseline Raw Features (PCA)"
+    )
 
 if __name__ == "__main__":
     main()
