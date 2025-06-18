@@ -126,8 +126,8 @@ linreg.fit(X_train, y_train)
 y_pred_lr = linreg.predict(X_test)
 
 print("\nLinear Regression Results:")
-print(f"R² score: {r2_score(y_test, y_pred_lr):.4f}")
-print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_lr)):.2f}")
+print(f"R² score on Test Set: {r2_score(y_test, y_pred_lr):.4f}")
+print(f"RMSE on Test Set: {np.sqrt(mean_squared_error(y_test, y_pred_lr)):.2f}")
 
 
 # %%
@@ -150,18 +150,12 @@ linreg_combined.fit(X_train_combined, y_train)
 y_pred_combined = linreg_combined.predict(X_test_combined)
 
 print("\nLinear Regression on Combined Features (Original + Embeddings):")
-print(f"R² score: {r2_score(y_test, y_pred_combined):.4f}")
-print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_combined)):.2f}")
-
-
-
-
-
+print(f"R² score on Test Set: {r2_score(y_test, y_pred_combined):.4f}")
+print(f"RMSE on Test Set: {np.sqrt(mean_squared_error(y_test, y_pred_combined)):.2f}")
 
 
 
 #%% Visualize Embeddings
-
 
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
@@ -169,7 +163,7 @@ import matplotlib.pyplot as plt
 embeddings_np = embeddings.numpy()
 
 inertia = []
-K_range = range(1, 15)  # Check clusters from 1 to 14
+K_range = range(1, 15) 
 
 for k in K_range:
     kmeans = KMeans(n_clusters=k, random_state=42)
@@ -191,7 +185,7 @@ plt.show()
 
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (needed for 3d projection)
+from mpl_toolkits.mplot3d import Axes3D  
 
 embeddings_np = embeddings.numpy()
 targets = graph_data.y.numpy()
@@ -252,7 +246,7 @@ import seaborn as sns
 
 coefficients = linreg_combined.coef_
 n_features = graph_data.x.shape[1]
-embedding_coefs = coefficients[n_features:]  # Last dims correspond to embeddings
+embedding_coefs = coefficients[n_features:] 
 
 plt.figure(figsize=(8, 4))
 sns.barplot(x=np.arange(len(embedding_coefs)), y=embedding_coefs)
@@ -376,8 +370,8 @@ y_pred_pca = model_pca.predict(X_test_pca_sm)
 # Output summary & metrics
 print("\nLinear Regression Summary (Using PC1 from embeddings):")
 print(model_pca.summary())
-print(f"\nR² score: {r2_score(y_test, y_pred_pca):.4f}")
-print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_pca)):.2f}")
+print(f"\nR² score on Test Set: {r2_score(y_test, y_pred_pca):.4f}")
+print(f"RMSE on Test Set: {np.sqrt(mean_squared_error(y_test, y_pred_pca)):.2f}")
 
 # %%
 
@@ -420,7 +414,7 @@ coords = sample_df[['longitude', 'latitude']].values
 
 # Create GeoDataFrame for nodes
 geometry = [Point(xy) for xy in coords]
-gdf_nodes = gpd.GeoDataFrame(sample_df, geometry=geometry, crs="EPSG:4326")  # WGS84
+gdf_nodes = gpd.GeoDataFrame(sample_df, geometry=geometry, crs="EPSG:4326")
 gdf_nodes = gdf_nodes.to_crs(epsg=3857)  # Web Mercator for plotting on basemaps
 
 # Build edges without self-loops
@@ -447,7 +441,6 @@ gdf_nodes.plot(ax=ax, markersize=10, color='#40E0D0', alpha=0.8)
 # Add basemap
 ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
 
-# Finalize
 ax.set_title("Housing Graph on California Map", fontsize=14)
 ax.set_axis_off()
 plt.show()
