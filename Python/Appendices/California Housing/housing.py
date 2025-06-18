@@ -107,7 +107,7 @@ with torch.no_grad():
     plt.scatter(y_true, y_pred, alpha=0.5, edgecolor='k')
     plt.xlabel('Actual Median House Value')
     plt.ylabel('Predicted Median House Value')
-    plt.title('GraphSAGE Node Regression (No Data Leakage)')
+    plt.title('GraphSAGE Node Regression')
     plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--')
     plt.grid(True)
     plt.show()
@@ -305,17 +305,42 @@ print("Canonical correlations:", corrs)
 import statsmodels.api as sm
 
 # For original features
-X_train_sm = sm.add_constant(X_train)  # adds intercept term
+orig_feature_names = graph_data.x.shape[1]
+orig_names = sample_df.select_dtypes(include=['int64', 'float64']).drop('median_house_value', axis=1).columns.tolist()
+
+X_train_df = pd.DataFrame(X_train, columns=orig_names)
+X_train_sm = sm.add_constant(X_train_df)
 model_orig = sm.OLS(y_train, X_train_sm).fit()
+
 print("\nLinear Regression Summary (Original Features):")
 print(model_orig.summary())
 
 # For combined features (original + embeddings)
-X_train_comb_sm = sm.add_constant(X_train_combined)
+embedding_dim = embeddings.shape[1]
+embedding_names = [f"Embedding {i+1}" for i in range(embedding_dim)]
+
+combined_feature_names = orig_names + embedding_names
+X_train_combined_df = pd.DataFrame(X_train_combined, columns=combined_feature_names)
+X_train_comb_sm = sm.add_constant(X_train_combined_df)
 model_combined = sm.OLS(y_train, X_train_comb_sm).fit()
+
 print("\nLinear Regression Summary (Combined Features):")
 print(model_combined.summary())
 
+# Run joint F-Test on the Embeddings 
+n_total = len(model_combined.params)
+n_embedding = len(embedding_names)
+
+R = np.zeros((n_embedding, n_total))
+
+start = n_total - n_embedding
+for i in range(n_embedding):
+    R[i, start + i] = 1
+
+f_test_result = model_combined.f_test(R)
+
+print("\nF-test for Joint Significance of All Embedding Coefficients:")
+print(f_test_result)
 
 
 
@@ -357,17 +382,29 @@ print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_pca)):.2f}")
 # %%
 
 import matplotlib.pyplot as plt
+import numpy as np
 
-# Assuming emb_pca from previous step (PC1 values)
-pc1 = emb_pca.squeeze()  # shape (n_samples,)
+# Extract PC1 and target values
+pc1 = emb_pca.squeeze()
+y_true = graph_data.y.numpy()
 
+# Compute regression line using the trained statsmodels model
+x_vals = np.linspace(pc1.min(), pc1.max(), 100)
+x_vals_const = sm.add_constant(x_vals)  # add intercept
+y_vals = model_pca.predict(x_vals_const)
+
+# Plot
 plt.figure(figsize=(10, 6))
-plt.scatter(pc1, graph_data.y.numpy(), alpha=0.6, edgecolor='k')
+plt.scatter(pc1, y_true, alpha=0.6, edgecolor='k', label='Data')
+plt.plot(x_vals, y_vals, color='red', linewidth=2, label='Regression Line')
 plt.xlabel('PC1 from Embeddings')
 plt.ylabel('Median House Value')
 plt.title('PC1 vs Median House Value')
+plt.legend()
 plt.grid(True)
+plt.tight_layout()
 plt.show()
+
 
 
 # %%
