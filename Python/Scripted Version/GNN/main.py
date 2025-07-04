@@ -32,7 +32,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Parameter for controlling connections
-FRAC = 0.01
+FRAC = 0.0005
 
 #====================================================================================================================
 # Data Preprocessing Module
@@ -488,9 +488,6 @@ if __name__ == "__main__":
     fig.show()
 
 
-
-
-# %%
 
 
 # %%
