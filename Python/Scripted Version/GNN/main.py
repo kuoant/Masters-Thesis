@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import random
 import torch
@@ -431,11 +432,15 @@ if __name__ == "__main__":
     importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
     top_feats = importance_df.sort_values(by='Importance', ascending=False).head(20)
 
+    # Custom red-to-blue colormap
+    custom_palette = sns.color_palette("RdBu_r", n_colors=20)  # reversed RdBu for better visual contrast
+
     plt.figure(figsize=(10, 6))
-    sns.barplot(data=top_feats, x='Importance', y='Feature', palette="viridis")
+    sns.barplot(data=top_feats, x='Importance', y='Feature', palette=custom_palette)
     plt.title("Top 20 Feature Importances (XGBoost with GNN Embeddings)")
     plt.tight_layout()
     plt.show()
+
 
     # 9. Visualize PCA of Embeddings
     import random
@@ -483,6 +488,9 @@ if __name__ == "__main__":
     fig.show()
 
 
+
+
+# %%
 
 
 # %%
