@@ -18,7 +18,7 @@ from torch_geometric.utils import from_networkx
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_auc_score
 import xgboost as xgb
 
 # Constants
@@ -31,7 +31,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Parameter for controlling connections
-FRAC = 1
+FRAC = 0.01
 
 #====================================================================================================================
 # Data Preprocessing Module
@@ -54,7 +54,7 @@ class DataPreprocessor:
         
         # Combine and shuffle
         df_small = pd.concat([df_non_default_sampled, df_default_sampled])
-        df_small = df_small.sample(frac=FRAC, random_state=RANDOM_SEED).reset_index(drop=True)
+        df_small = df_small.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
         df_small = df_small.drop(columns=['LoanID'])
         
         return df_small
@@ -89,7 +89,7 @@ class DataPreprocessor:
 #====================================================================================================================
 class GraphBuilder:
     @staticmethod
-    def build_graph(X_train_subset, y_train_subset, connection_percentage=0.05):
+    def build_graph(X_train_subset, y_train_subset, connection_percentage=FRAC):
         combined = X_train_subset.copy()
         combined['Default'] = y_train_subset.values
         
@@ -221,6 +221,17 @@ class ModelEvaluator:
         print(f"XGBoost Accuracy (with GNN embeddings): {acc:.4f}")
         ModelEvaluator.plot_confusion_matrix(cm, "XGBoost Confusion Matrix (GNN-enhanced features)")
         
+        print("Classification report (XGBoost with GNN embeddings):")
+        print(classification_report(y_val, y_pred, target_names=["No Default", "Default"]))
+
+        # Compute predicted probabilities for positive class
+        y_probs = xgb_model.predict_proba(X_val)[:, 1]
+
+        # Compute AUC score
+        auc = roc_auc_score(y_val, y_probs)
+
+        print(f"XGBoost AUC (with GNN embeddings): {auc:.4f}")
+
         return acc, cm
     
     @staticmethod
@@ -241,6 +252,17 @@ class ModelEvaluator:
         print(f"XGBoost Accuracy (original features only): {acc_raw:.4f}")
         ModelEvaluator.plot_confusion_matrix(cm_raw, "Confusion Matrix: XGBoost (Original Features Only)")
         
+        print("Classification report (XGBoost without GNN embeddings):")
+        print(classification_report(y_val, y_pred_raw, target_names=["No Default", "Default"]))
+        
+        # Compute predicted probabilities for positive class
+        y_probs_raw = xgb_raw.predict_proba(X_val)[:, 1]
+
+        # Compute AUC score
+        auc_raw = roc_auc_score(y_val, y_probs_raw)
+
+        print(f"XGBoost AUC (original features only): {auc_raw:.4f}")
+
         return acc_raw, cm_raw
     
     @staticmethod
@@ -316,7 +338,21 @@ class MLPTrainer:
             
             print(f'MLP Test Accuracy: {acc:.4f}')
             ModelEvaluator.plot_confusion_matrix(cm, "MLP Confusion Matrix")
-        
+
+            # Classification Report
+            print("Classification report (MLP):")
+            print(classification_report(
+                y_test_tensor.cpu(), predicted.cpu(), 
+                target_names=["No Default", "Default"]
+            ))
+
+            # Compute probabilities for positive class
+            probs = torch.softmax(test_outputs, dim=1)[:, 1].cpu().numpy()
+            y_true = y_test_tensor.cpu().numpy()
+
+            auc = roc_auc_score(y_true, probs)
+            print(f'MLP Test AUC: {auc:.4f}')
+                    
         return acc, cm
 
 #====================================================================================================================
@@ -445,15 +481,6 @@ if __name__ == "__main__":
 
     pio.renderers.default = 'browser'
     fig.show()
-
-
-
-
-
-
-
-
-
 
 
 
