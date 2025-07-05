@@ -555,7 +555,28 @@ if __name__ == "__main__":
 
     # Dummy categorical and numerical input
     num_cat = len(cat_features_info)
-    sample_cat = tf.zeros((1, num_cat), dtype=tf.int32)  
+
+    # Example mappings (replace with actual mappings from your preprocessing pipeline)
+    education_map = {'High School': 0, 'Bachelors': 1, 'Masters': 2, 'PhD': 3}
+    employment_map = {'Full-time': 0, 'Part-time': 1, 'Self-employed': 2}
+    marital_map = {'Single': 0, 'Married': 1, 'Divorced': 2}
+    mortgage_map = {'No': 0, 'Yes': 1}
+    dependents_map = {'No': 0, 'Yes': 1}
+    loanpurpose_map = {'Car': 0, 'Home': 1, 'Education': 2, 'Other': 3}
+    cosigner_map = {'No': 0, 'Yes': 1}
+        
+    example_cat_values = [
+    education_map['PhD'],
+    employment_map['Part-time'],
+    marital_map['Married'],
+    mortgage_map['Yes'],
+    dependents_map['Yes'],
+    loanpurpose_map['Education'],
+    cosigner_map['Yes']
+    ]
+
+    sample_cat = tf.constant([example_cat_values], dtype=tf.int32)
+
     sample_num = tf.zeros((1, num_numerical), dtype=tf.float32)
 
     # Text Attention Model
@@ -645,8 +666,6 @@ if __name__ == "__main__":
         plt.show()
 
 
-
-
     # Ensure correct types
     df['MaritalStatus'] = df['MaritalStatus'].astype(str)
     df['Education'] = df['Education'].astype(str)
@@ -663,38 +682,18 @@ if __name__ == "__main__":
     # Pivot table to feed into heatmap
     heatmap_data = grouped['default_rate'].unstack().fillna(0)
 
-    # Plot
+    # Plot with Viridis colormap (green to yellow)
     plt.figure(figsize=(10, 6))
-    sns.heatmap(heatmap_data, annot=True, fmt=".1f", cmap='coolwarm', cbar_kws={'label': '% Default'})
+    sns.heatmap(
+        heatmap_data,
+        annot=True,
+        fmt=".1f",
+        cmap='viridis',  # <- Changed here
+        cbar_kws={'label': '% Default'}
+    )
     plt.title('Default Rate (%) by Education and Marital Status (Dependents = Yes)')
     plt.xlabel('Marital Status')
     plt.ylabel('Education')
     plt.tight_layout()
     plt.show()
 
-    # Ensure correct types
-    df['HasMortgage'] = df['HasMortgage'].astype(str)
-    df['Education'] = df['Education'].astype(str)
-    df['HasDependents'] = df['HasDependents'].astype(str)
-    df['Default'] = df['Default'].astype(int)
-
-    # Filter: only applicants with dependents
-    df_subset = df[df['HasDependents'] == 'Yes']
-
-    # Group by Education + HasMortgage, compute default rate
-    grouped = df_subset.groupby(['Education', 'HasMortgage'])['Default'].agg(['sum', 'count'])
-    grouped['default_rate'] = grouped['sum'] / grouped['count'] * 100  # in percent
-
-    # Pivot table to feed into heatmap
-    heatmap_data = grouped['default_rate'].unstack().fillna(0)
-
-    # Plot
-    plt.figure(figsize=(10, 6))
-    sns.heatmap(heatmap_data, annot=True, fmt=".1f", cmap='coolwarm', cbar_kws={'label': '% Default'})
-    plt.title('Default Rate (%) by Education and HasMortgage (Dependents = Yes)')
-    plt.xlabel('Has Mortgage')
-    plt.ylabel('Education')
-    plt.tight_layout()
-    plt.show()
-
-# %%
