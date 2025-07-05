@@ -26,7 +26,7 @@ NUM_HEADS = 2
 NUM_TRANSFORMER_BLOCKS = 2
 
 # Parameter for Job Description Simulation
-FRAC = 0.5
+FRAC = 1
 
 #====================================================================================================================
 # Data Preprocessing Module
