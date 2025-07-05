@@ -26,7 +26,7 @@ NUM_HEADS = 2
 NUM_TRANSFORMER_BLOCKS = 2
 
 # Parameter for Job Description Simulation
-FRAC = 1
+FRAC = 0.5
 
 #====================================================================================================================
 # Data Preprocessing Module
@@ -45,14 +45,15 @@ class TabularDataPreprocessor:
         ]
         
         generic_descriptions = [
-            "Software engineer in a fintech startup. Developed APIs and maintained backend services.",
-            "Teacher at a public high school. Responsible for curriculum planning and grading.",
-            "Office administrator managing schedules, invoices, and office supplies.",
-            "Sales associate at a retail clothing store providing customer support.",
-            "Customer service representative at a call center handling billing inquiries.",
-            "Freelance content writer producing marketing materials for small businesses.",
-            "Warehouse worker managing inventory and handling logistics support.",
-            "Data analyst interpreting sales data and creating performance dashboards."
+            "Part-time Software engineer in a fintech startup. Developed APIs and maintained backend services for over 5 years.",
+            "Part-time Teacher at a public high school since 12 months, working at 60% capacity. Responsible for curriculum planning and grading.",
+            "Office administrator in a hotel managing schedules, invoices, and office supplies. Working in hospitality since 5 years",
+            "Sales associate at a retail clothing store providing customer support for 3 months.",
+            "Customer service representative at a call center handling billing inquiries and selling holiday trips for 20 years.",
+            "Freelance content writer producing marketing materials for small businesses like local hostels for 2 years.",
+            "Warehouse worker managing inventory and handling logistics support for over 25 years.",
+            "Data analyst interpreting sales data and creating performance dashboards at a tech-company for 7 years.",
+            "Hotel Manager with 12 years of experience at 5-star hotels worldwide."
         ]
         
         # Create risky job descriptions for high-risk cases
@@ -232,7 +233,7 @@ class ModelTrainer:
         history = model.fit(
             (X_train['categorical'], X_train['numerical'], X_train['text']),
             y_train,
-            epochs=30,
+            epochs=50,
             batch_size=32,
             validation_split=0.2,
             callbacks=callbacks
@@ -267,7 +268,7 @@ class ModelEvaluator:
         print("\nConfusion Matrix:\n", cm)
         print("\nClassification Report:\n", classification_report(y_test, y_pred))
         
-        # Plot styled confusion matrix (same as MLP version)
+        # Plot styled confusion matrix
         plt.figure(figsize=(6, 5))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                     xticklabels=['Class 0', 'Class 1'], 
@@ -328,6 +329,15 @@ class ModelEvaluator:
         cm = confusion_matrix(y_test.numpy(), y_pred)
         
         ModelEvaluator.plot_confusion_matrix(cm, f"XGBoost Confusion Matrix with Embeddings: {use_embeddings}")
+        
+        # Compute predicted probabilities for positive class
+        y_probs = xgb_clf.predict_proba(test_features)[:, 1]
+
+        # Compute AUC score
+        auc = roc_auc_score(y_test.numpy(), y_probs)
+        print(f"XGBoost AUC: {auc:.4f}")
+
+        print("\nClassification Report:\n", classification_report(y_test, y_pred))
 
         print(f"{title} Accuracy: {acc:.4f}")
         return acc
@@ -366,7 +376,8 @@ class MLPTrainer:
     @staticmethod
     def train_and_evaluate(X_train, y_train, X_test, y_test, epochs=100):
         """Train and evaluate MLP on raw features (no embeddings)"""
-        # 1. Prepare features (EXACTLY like XGBoost use_embeddings=False)
+
+        # 1. Prepare features
         X_train_combined = np.concatenate([
             X_train['categorical'].numpy(),  # Label-encoded categoricals
             X_train['numerical'].numpy()     # Pre-scaled numerical features
@@ -405,7 +416,15 @@ class MLPTrainer:
         
         acc = accuracy_score(y_test.numpy(), y_pred)
         cm = confusion_matrix(y_test.numpy(), y_pred)
-        
+
+        # Compute predicted probabilities for positive class
+        y_probs = model.predict(X_test_combined).ravel()
+
+        # Compute AUC score
+        auc = roc_auc_score(y_test, y_probs)
+        print(f"XGBoost AUC: {auc:.4f}")
+
+        print("\nClassification Report:\n", classification_report(y_test, y_pred))
         print(f'MLP (Raw Features) Accuracy: {acc:.4f}')
         ModelEvaluator.plot_confusion_matrix(cm, "MLP Confusion Matrix (Raw Features)")
         
@@ -455,6 +474,7 @@ if __name__ == "__main__":
     # Predict embeddings for test set
     test_embeddings = embedding_model.predict((X_test['categorical'], X_test['numerical'], X_test['text']))
 
+
     # Choose dimensionality reduction method: t-SNE or PCA
     def plot_embeddings(embeddings, labels, method='tsne'):
         if method == 'tsne':
@@ -470,7 +490,7 @@ if __name__ == "__main__":
         sns.scatterplot(
             x=reduced_emb[:,0], y=reduced_emb[:,1],
             hue=labels,
-            palette={0: 'blue', 1: 'red'},
+            palette={0: 'red', 1: 'blue'},
             alpha=0.7
         )
         plt.title(f'{method.upper()} visualization of Transformer Embeddings')
@@ -494,8 +514,8 @@ if __name__ == "__main__":
     # Plot PCA & Centroids
     plt.figure(figsize=(8,6))
     sns.scatterplot(x=embeddings_2d[:,0], y=embeddings_2d[:,1], hue=y_test.numpy(), 
-                    palette={0:'blue', 1:'red'}, alpha=0.5)
-    plt.scatter(centroids_2d[:,0], centroids_2d[:,1], s=200, c=['blue','red'], marker='X', label='Centroids')
+                    palette={0:'red', 1:'blue'}, alpha=0.5)
+    plt.scatter(centroids_2d[:,0], centroids_2d[:,1], s=200, c=['red','blue'], marker='X', label='Centroids')
     plt.title("PCA Embeddings with Class Centroids")
     plt.xlabel("Component 1")
     plt.ylabel("Component 2")
@@ -580,16 +600,21 @@ if __name__ == "__main__":
 
     # %% 10. Plot Text Attention
 
-    vocab = ['', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support', 
-        'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative', 
-        'inquiries', 'center', 'call', 'billing', 'supplies', 'schedules', 'invoices', 'administrator', 
-        'worker', 'warehouse', 'logistics', 'inventory', 'teacher', 'school', 'responsible', 'public', 
-        'planning', 'high', 'grading', 'curriculum', 'performance', 'interpreting', 'dashboards', 
-        'creating', 'analyst', 'writer', 'small', 'producing', 'materials', 'marketing', 'freelance', 
-        'content', 'businesses', 'store', 'retail', 'providing', 'clothing', 'associate', 'startup', 
-        'software', 'maintained', 'fintech', 'engineer', 'developed', 'backend', 'apis', 'worked', 
-        'primarily', 'local', 'hospitality', 'front', 'employed', 'desk', '20', 'with', 'guest', 
-        'assisting', '12', 'server', 'restaurant', 'evenings', 'as', '10']
+    vocab = vocab = [
+        '', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support',
+        'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative',
+        'inquiries', 'center', 'call', 'billing', 'supplies', 'schedules', 'invoices', 'administrator',
+        'worker', 'warehouse', 'logistics', 'inventory', 'teacher', 'school', 'responsible', 'public',
+        'planning', 'high', 'grading', 'curriculum', 'performance', 'interpreting', 'dashboards',
+        'creating', 'analyst', 'writer', 'small', 'producing', 'materials', 'marketing', 'freelance',
+        'content', 'businesses', 'store', 'retail', 'providing', 'clothing', 'associate', 'startup',
+        'software', 'maintained', 'fintech', 'engineer', 'developed', 'backend', 'apis', 'worked',
+        'primarily', 'local', 'hospitality', 'front', 'employed', 'desk', 'with', 'guest', 'assisting',
+        'server', 'restaurant', 'evenings', 'as', 'part-time', 'services', 'over', 'years', 'since',
+        'working', 'capacity', '60%', 'responsible', 'selling', 'holiday', 'trips', 'like', 'hostels',
+        'tech-company', 'experience', '5-star', 'hotels', 'worldwide', '3', '2', '10', '12', '20', '25',
+        '5', '7']
+
 
     vocab_size = 100
 
