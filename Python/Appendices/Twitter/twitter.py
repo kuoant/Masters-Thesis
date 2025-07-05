@@ -7,8 +7,9 @@ from tensorflow.keras import layers, Model
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 from sklearn.decomposition import PCA
+from sklearn.feature_extraction.text import CountVectorizer
 import xgboost as xgb
 
 # Constants
@@ -148,7 +149,6 @@ class BaselineXGBoost:
         test_data['text'] = test_data['text'].str.lower()
         
         # Create simple character n-gram features (as a simple baseline)
-        from sklearn.feature_extraction.text import CountVectorizer
         vectorizer = CountVectorizer(
             analyzer='char', 
             ngram_range=(2, 4),  # character 2-4 grams
@@ -184,7 +184,14 @@ def main():
     print("\nBaseline XGBoost Evaluation:")
     baseline_pred = xgb_baseline.predict(X_test_raw)
     print(classification_report(y_test_raw, baseline_pred, target_names=class_names))
-    
+
+    # Get class probabilities
+    baseline_proba = xgb_baseline.predict_proba(X_test_raw)
+
+    # Compute multi-class AUC (One-vs-Rest)
+    auc_score = roc_auc_score(y_test_raw, baseline_proba, multi_class='ovr')
+    print(f"AUC Score (multi-class OVR): {auc_score:.4f}")
+        
     # 3. Run transformer + XGBoost pipeline (original code)
     print("\n=== Transformer + XGBoost Pipeline ===")
     X_train, X_test, y_train, y_test = TwitterDataPreprocessor.preprocess_data(df)
@@ -212,6 +219,12 @@ def main():
     y_pred = model.predict(X_test['text']).argmax(axis=1)
     print(classification_report(y_test.numpy(), y_pred, target_names=class_names))
     
+    # Get class probabilities from transformer
+    y_proba = model.predict(X_test['text'])
+
+    # Compute multi-class AUC (One-vs-Rest)
+    auc_score_tf = roc_auc_score(y_test.numpy(), y_proba, multi_class='ovr')
+    print(f"AUC Score (Transformer Only, OVR): {auc_score_tf:.4f}")
 
     embedding_model = Model(
     inputs=model.input,  # Use model.input instead of model.inputs for single input
@@ -240,6 +253,15 @@ def main():
     print("\nXGBoost with Embeddings Evaluation:")
     emb_pred = xgb_emb.predict(X_test_emb)
     print(classification_report(y_test.numpy(), emb_pred, target_names=class_names))
+
+    
+    # Get class probabilities
+    emb_proba = xgb_emb.predict_proba(X_test_emb)
+
+    # Compute multi-class AUC (One-vs-Rest)
+    auc_score_emb = roc_auc_score(y_test.numpy(), emb_proba, multi_class='ovr')
+    print(f"AUC Score (Embeddings + XGBoost, OVR): {auc_score_emb:.4f}")
+
 
     # Visualization of embeddings with PCA
     print("\n=== Embedding Visualization ===")

@@ -665,35 +665,34 @@ if __name__ == "__main__":
         plt.tight_layout()
         plt.show()
 
-
+    #%%
     # Ensure correct types
-    df['MaritalStatus'] = df['MaritalStatus'].astype(str)
     df['Education'] = df['Education'].astype(str)
     df['HasDependents'] = df['HasDependents'].astype(str)
     df['Default'] = df['Default'].astype(int)
 
-    # Filter: only applicants with dependents
-    df_subset = df[df['HasDependents'] == 'Yes']
-
-    # Group by MaritalStatus and Education, compute default rate
-    grouped = df_subset.groupby(['Education', 'MaritalStatus'])['Default'].agg(['sum', 'count'])
+    # Group by Education, compute default rate
+    grouped = df.groupby(['Education'])['Default'].agg(['sum', 'count'])
     grouped['default_rate'] = grouped['sum'] / grouped['count'] * 100  # in percent
 
-    # Pivot table to feed into heatmap
-    heatmap_data = grouped['default_rate'].unstack().fillna(0)
+    # Convert to 2D DataFrame for heatmap (1 column)
+    heatmap_data = grouped[['default_rate']].sort_values('default_rate', ascending=False)
 
-    # Plot with Viridis colormap (green to yellow)
-    plt.figure(figsize=(10, 6))
+    # Plot
+    plt.figure(figsize=(6, 4))
     sns.heatmap(
         heatmap_data,
         annot=True,
         fmt=".1f",
-        cmap='viridis',  # <- Changed here
+        cmap='viridis',
         cbar_kws={'label': '% Default'}
     )
-    plt.title('Default Rate (%) by Education and Marital Status (Dependents = Yes)')
-    plt.xlabel('Marital Status')
+    plt.title('Default Rate (%) by Education (Dependents = Yes)')
+    plt.xlabel('% Default')
     plt.ylabel('Education')
     plt.tight_layout()
     plt.show()
 
+
+
+# %%
