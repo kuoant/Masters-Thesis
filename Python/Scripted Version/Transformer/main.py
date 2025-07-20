@@ -522,11 +522,7 @@ if __name__ == "__main__":
     plt.legend(title='Class')
     plt.show()
 
-
-
-
-    # Plot Attention
-    # %%
+    # 9. Plot Attention
     vocab = [
         '', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support',
         'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative',
@@ -594,7 +590,7 @@ if __name__ == "__main__":
     text_attention_model = Model(inputs=text_inputs, outputs=attention_weights_list)
     all_text_attention = text_attention_model.predict(sample_text)
 
-    # Visualize TEXT attention
+    # Visualize Text attention
     token_words = [vocab[token] if token < len(vocab) else '[UNK]' for token in sample_text.numpy()[0]]
     non_empty_indices = [i for i, word in enumerate(token_words) if word != '']
     filtered_token_words = [token_words[i] for i in non_empty_indices]
@@ -646,7 +642,7 @@ if __name__ == "__main__":
 
     all_cat_attention = attention_model_cat.predict(sample_input)
 
-    # Visualize CATEGORICAL attention
+    # Visualize Categorical attention
     cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
 
     for block_idx, weights in enumerate(all_cat_attention):
@@ -665,7 +661,9 @@ if __name__ == "__main__":
         plt.tight_layout()
         plt.show()
 
-    #%%
+
+    # 10. Plot Default Rate Against Education
+
     # Ensure correct types
     df['Education'] = df['Education'].astype(str)
     df['HasDependents'] = df['HasDependents'].astype(str)
