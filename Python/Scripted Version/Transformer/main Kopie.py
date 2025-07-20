@@ -325,10 +325,10 @@ class ModelEvaluator:
             title = "XGBoost on Transformer Embeddings"
         else:
             # Use raw features
-            features = np.hstack([X_train['categorical'].numpy(), 
+            features = np.hstack([#X_train['categorical'].numpy(), 
                                 X_train['numerical'].numpy(),
                                 X_train['text'].numpy()])
-            test_features = np.hstack([X_test['categorical'].numpy(), 
+            test_features = np.hstack([#X_test['categorical'].numpy(), 
                                     X_test['numerical'].numpy(),
                                     X_test['text'].numpy()])
             title = "XGBoost on Raw Features"
