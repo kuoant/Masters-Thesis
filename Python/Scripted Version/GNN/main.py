@@ -19,6 +19,7 @@ from torch_geometric.utils import from_networkx
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
+from sklearn.manifold import TSNE
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_auc_score
 import xgboost as xgb
 
@@ -32,7 +33,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Parameter for controlling connections
-FRAC = 0.0005
+FRAC = 0.025
 
 #====================================================================================================================
 # Data Preprocessing Module
@@ -120,7 +121,7 @@ class GraphBuilder:
         missing_node_indices = set(all_node_indices) - existing_node_indices
         G.add_nodes_from(missing_node_indices)
         
-        return G
+        return G, adj_matrix
     
     @staticmethod
     def visualize_graph(G, X_train_subset):
@@ -267,6 +268,49 @@ class ModelEvaluator:
         return acc_raw, cm_raw
     
     @staticmethod
+    def evaluate_with_adj(original_features_np, labels, adj_matrix):
+        
+        # Get the indices that exist in both the features and adjacency matrix
+        common_indices = adj_matrix.index.intersection(pd.RangeIndex(start=0, stop=len(original_features_np)))
+        
+        # Filter both features and adjacency matrix to only include common indices
+        original_features_filtered = original_features_np[common_indices]
+        adj_features = adj_matrix.loc[common_indices, common_indices].values
+        labels_filtered = labels[common_indices]
+        
+        # Combine with original features
+        combined_features = np.hstack((original_features_filtered, adj_features))
+        
+        # Train/test split
+        X_train, X_val, y_train, y_val = train_test_split(
+            combined_features, labels_filtered, test_size=TEST_SIZE, 
+            random_state=RANDOM_SEED, stratify=labels_filtered
+        )
+        
+        # Train and evaluate XGBoost
+        xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_SEED)
+        xgb_model.fit(X_train, y_train)
+        y_pred = xgb_model.predict(X_val)
+        acc = accuracy_score(y_val, y_pred)
+        cm = confusion_matrix(y_val, y_pred)
+        
+        print(f"XGBoost Accuracy (with raw adjacency matrix features): {acc:.4f}")
+        ModelEvaluator.plot_confusion_matrix(cm, "XGBoost Confusion Matrix (Raw Adjacency Matrix features)")
+        
+        print("Classification report (XGBoost with raw adjacency matrix features):")
+        print(classification_report(y_val, y_pred, target_names=["No Default", "Default"]))
+
+        # Compute predicted probabilities for positive class
+        y_probs = xgb_model.predict_proba(X_val)[:, 1]
+
+        # Compute AUC score
+        auc = roc_auc_score(y_val, y_probs)
+
+        print(f"XGBoost AUC (with raw adjacency matrix features): {auc:.4f}")
+
+        return acc, cm
+        
+    @staticmethod
     def plot_confusion_matrix(cm, title):
         plt.figure(figsize=(6, 5))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
@@ -367,7 +411,7 @@ if __name__ == "__main__":
     # 2. Graph Construction
     X_train_subset = X_train_scaled[:10000]
     y_train_subset = y_train[:10000]
-    G = GraphBuilder.build_graph(X_train_subset, y_train_subset)
+    G, adj_matrix = GraphBuilder.build_graph(X_train_subset, y_train_subset)
     GraphBuilder.visualize_graph(G, X_train_subset)
     
     # 3. Convert to PyTorch Geometric format
@@ -390,6 +434,9 @@ if __name__ == "__main__":
     # Without GNN embeddings (original features only)
     ModelEvaluator.evaluate_without_gnn(original_features_np, labels)
 
+    # With adjacency matrix
+    ModelEvaluator.evaluate_with_adj(original_features_np, labels, adj_matrix)
+
     # 6. MLP Performance Comparison
     mlp_acc, mlp_cm = MLPTrainer.train_and_evaluate(
         X_train_scaled, y_train, 
@@ -398,8 +445,6 @@ if __name__ == "__main__":
     )
 
     # 7. Visualize Embeddings with TSNE
-    from sklearn.manifold import TSNE
-
     trained_model.eval()
     with torch.no_grad():
         hidden_embeddings = trained_model.conv1(data.x, data.edge_index)
