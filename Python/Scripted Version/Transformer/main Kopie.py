@@ -1,0 +1,708 @@
+#====================================================================================================================
+# Imports and Constants
+#====================================================================================================================
+#%%
+
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, Model
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
+                            f1_score, roc_auc_score, roc_curve, 
+                            confusion_matrix, classification_report)
+import matplotlib.pyplot as plt
+import seaborn as sns
+import xgboost as xgb
+    
+
+# Constants
+RANDOM_SEED = 42
+TEST_SIZE = 0.2
+MAX_TOKENS = 1000
+OUTPUT_SEQUENCE_LENGTH = 20
+EMBED_DIM = 32
+NUM_HEADS = 2
+NUM_TRANSFORMER_BLOCKS = 2
+
+# Parameter for Job Description Simulation
+FRAC = 1
+
+#====================================================================================================================
+# Data Preprocessing Module
+#====================================================================================================================
+class TabularDataPreprocessor:
+    @staticmethod
+    def load_and_prepare_data(filepath):
+        """Load and prepare the dataset with job descriptions"""
+        df = pd.read_csv(filepath)
+        
+        # Generate job descriptions
+        risky_descriptions = [
+            "Worked part-time at a hotel assisting with guest services for 12 months.",
+            "Employed part-time in hospitality, primarily at a local hotel front desk for 20 months.",
+            "Worked evenings part-time at a hotel restaurant as a server for 10 months."
+        ]
+        
+        generic_descriptions = [
+            "Part-time Software engineer in a fintech startup. Developed APIs and maintained backend services for over 5 years.",
+            "Part-time Teacher at a public high school since 12 months, working at 60% capacity. Responsible for curriculum planning and grading.",
+            "Office administrator in a hotel managing schedules, invoices, and office supplies. Working in hospitality since 5 years",
+            "Sales associate at a retail clothing store providing customer support for 3 months.",
+            "Customer service representative at a call center handling billing inquiries and selling holiday trips for 20 years.",
+            "Freelance content writer producing marketing materials for small businesses like local hostels for 2 years.",
+            "Warehouse worker managing inventory and handling logistics support for over 25 years.",
+            "Data analyst interpreting sales data and creating performance dashboards at a tech-company for 7 years.",
+            "Hotel Manager with 12 years of experience at 5-star hotels worldwide."
+        ]
+        
+        # Create risky job descriptions for high-risk cases
+        risky_pool = df[(df['Default'] == 1) & (df['HasDependents'] == 'Yes')]
+        risky_sample = risky_pool.sample(frac=FRAC, random_state=RANDOM_SEED)
+        
+        df['JobDescription'] = None
+        for i, idx in enumerate(risky_sample.index):
+            df.at[idx, 'JobDescription'] = risky_descriptions[i % len(risky_descriptions)]
+        
+        # Fill remaining with generic descriptions
+        remaining_indices = df[df['JobDescription'].isna()].index
+        df.loc[remaining_indices, 'JobDescription'] = np.random.choice(
+            generic_descriptions, size=len(remaining_indices))
+        
+        return df
+    
+    @staticmethod
+    def preprocess_data(df):
+        """Split data and prepare features"""
+        # Split data
+        train_data, test_data = train_test_split(
+            df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
+        
+        # Save raw text before encoding
+        train_data_raw = train_data.copy()
+        test_data_raw = test_data.copy()
+        
+        # Separate labels
+        y_train = train_data['Default']
+        y_test = test_data['Default']
+        
+        # Define columns
+        categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus',
+                             'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
+        
+        numerical_columns = train_data.select_dtypes(
+            include=['int64', 'float64']).columns.tolist()
+        numerical_columns = [col for col in numerical_columns 
+                            if col not in categorical_columns + ['Default']]
+        
+        # Encode categorical columns
+        for col in categorical_columns:
+            train_data[col] = train_data[col].astype('category').cat.codes
+            test_data[col] = test_data[col].astype('category').cat.codes
+        
+        # Get cardinalities
+        cat_cardinalities = [train_data[col].nunique() for col in categorical_columns]
+        cat_features_info = [(card, EMBED_DIM) for card in cat_cardinalities]
+        
+        # Scale numerical features
+        scaler = StandardScaler()
+        train_data[numerical_columns] = scaler.fit_transform(train_data[numerical_columns])
+        test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
+        
+        # Prepare text vectorizer
+        text_vectorizer = layers.TextVectorization(
+            max_tokens=MAX_TOKENS,
+            output_mode='int',
+            output_sequence_length=OUTPUT_SEQUENCE_LENGTH
+        )
+        text_vectorizer.adapt(train_data_raw['JobDescription'].fillna('').astype(str).values)
+        
+        vocab = text_vectorizer.get_vocabulary()
+
+        print(vocab)
+
+        # Vectorize text
+        X_train_text = text_vectorizer(train_data_raw['JobDescription'].fillna('').astype(str).values)
+        X_test_text = text_vectorizer(test_data_raw['JobDescription'].fillna('').astype(str).values)
+        
+        # Convert to tensors
+        X_train = {
+            'categorical': tf.convert_to_tensor(train_data[categorical_columns].values), 
+            'numerical': tf.convert_to_tensor(train_data[numerical_columns].values),
+            'text': X_train_text
+        }
+        
+        X_test = {
+            'categorical': tf.convert_to_tensor(test_data[categorical_columns].values),
+            'numerical': tf.convert_to_tensor(test_data[numerical_columns].values),
+            'text': X_test_text
+        }
+        
+        y_train = tf.convert_to_tensor(y_train.values)
+        y_test = tf.convert_to_tensor(y_test.values)
+        
+        return X_train, X_test, y_train, y_test, cat_features_info, len(numerical_columns)
+
+#====================================================================================================================
+# Model Building Module
+#====================================================================================================================
+class TransformerBlock(layers.Layer):
+    """Improved Transformer block with better compatibility"""
+    def __init__(self, embed_dim, num_heads):
+        super().__init__()
+        self.att = layers.MultiHeadAttention(
+            num_heads=num_heads, 
+            key_dim=embed_dim
+        )
+        self.ffn = tf.keras.Sequential([
+            layers.Dense(embed_dim * 2, activation="gelu"),
+            layers.Dense(embed_dim),
+        ])
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+    def call(self, inputs):
+        attn_output = self.att(inputs, inputs)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        return self.layernorm2(out1 + ffn_output)
+
+class TabTransformerModel:
+    """Compatible TabTransformer with improvements"""
+    @staticmethod
+    def build_model(cat_features_info, num_numerical):
+        """Build the full TabTransformer model"""
+        # Input layers (unchanged)
+        categorical_inputs = layers.Input(shape=(len(cat_features_info),), name='categorical_inputs')
+        numerical_inputs = layers.Input(shape=(num_numerical,), name='numerical_inputs')
+        text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
+        
+        # Categorical processing (with improved embeddings)
+        embedded_cats = []
+        for i, (card, dim) in enumerate(cat_features_info):
+            emb = layers.Embedding(
+                input_dim=card, 
+                output_dim=dim,
+                embeddings_regularizer=tf.keras.regularizers.l2(1e-5)
+            )(categorical_inputs[:, i:i+1])
+            embedded_cats.append(emb)
+        
+        x_cat = layers.Concatenate(axis=1)(embedded_cats)
+        
+        # Transformer blocks (improved)
+        for _ in range(NUM_TRANSFORMER_BLOCKS):
+            x_cat = TransformerBlock(EMBED_DIM, NUM_HEADS)(x_cat)
+        
+        x_cat = layers.Flatten()(x_cat)
+        
+        # Numerical features (with batch norm)
+        x_num = layers.BatchNormalization()(numerical_inputs)
+        x_num = layers.Dense(32, activation='gelu')(x_num)
+        
+        # Text processing (improved)
+        x_text = layers.Embedding(
+            input_dim=MAX_TOKENS, 
+            output_dim=32,
+            mask_zero=True
+        )(text_inputs)
+        x_text = TransformerBlock(32, 2)(x_text)
+        x_text = layers.GlobalAveragePooling1D()(x_text)
+        
+        # Feature combination (simplified but effective)
+        x = layers.Concatenate()([x_cat, x_num, x_text])
+        x = layers.BatchNormalization()(x)
+        x = layers.Dense(64, activation='gelu')(x)
+        x = layers.Dense(32, activation='gelu')(x)
+        outputs = layers.Dense(1, activation='sigmoid')(x)
+        
+        model = Model(
+            inputs=[categorical_inputs, numerical_inputs, text_inputs],
+            outputs=outputs
+        )
+        
+        return model
+    
+#====================================================================================================================
+# Training and Evaluation Module
+#====================================================================================================================
+class ModelTrainer:
+    @staticmethod
+    def train_model(model, X_train, y_train):
+        """Train the TabTransformer model"""
+        callbacks = [
+            tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True),
+            tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3)
+        ]
+        
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        history = model.fit(
+            (X_train['categorical'], X_train['numerical'], X_train['text']),
+            y_train,
+            epochs=50,
+            batch_size=32,
+            validation_split=0.2,
+            callbacks=callbacks
+        )
+        
+        return model, history
+
+class ModelEvaluator:
+    @staticmethod
+    def evaluate_model(model, X_test, y_test):
+        """Evaluate the model and print metrics"""
+        y_pred_proba = model.predict((X_test['categorical'], X_test['numerical'], X_test['text']))
+        y_pred = (y_pred_proba.flatten() > 0.5).astype(int)
+        
+        # Calculate metrics
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred)
+        rec = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        auc = roc_auc_score(y_test, y_pred_proba)
+        
+        # Print results
+        print("Evaluation Results:")
+        print(f"Accuracy:  {acc:.4f}")
+        print(f"Precision: {prec:.4f}")
+        print(f"Recall:    {rec:.4f}")
+        print(f"F1 Score:  {f1:.4f}")
+        print(f"AUC:       {auc:.4f}")
+        
+        # Get and print confusion matrix
+        cm = confusion_matrix(y_test, y_pred)
+        print("\nConfusion Matrix:\n", cm)
+        print("\nClassification Report:\n", classification_report(y_test, y_pred))
+        
+        # Plot styled confusion matrix
+        plt.figure(figsize=(6, 5))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                    xticklabels=['Class 0', 'Class 1'], 
+                    yticklabels=['Class 0', 'Class 1'])
+        plt.title('Model Confusion Matrix')
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
+        plt.show()
+        
+        return acc, auc, f1
+    
+    @staticmethod
+    def evaluate_xgboost(model, X_train, y_train, X_test, y_test, use_embeddings=True):
+        """Fixed XGBoost evaluation with proper key handling"""
+        if use_embeddings:
+            # Create input mapping from our data structure to model's expected names
+            train_inputs = {
+                'categorical_inputs': X_train['categorical'],
+                'numerical_inputs': X_train['numerical'],
+                'text_inputs': X_train['text']
+            }
+            
+            test_inputs = {
+                'categorical_inputs': X_test['categorical'],
+                'numerical_inputs': X_test['numerical'],
+                'text_inputs': X_test['text']
+            }
+
+            # Create embedding model
+            embedding_model = Model(
+                inputs=model.inputs,
+                outputs=model.layers[-2].output
+            )
+            
+            # Get embeddings using properly mapped inputs
+            X_train_emb = embedding_model.predict(train_inputs)
+            X_test_emb = embedding_model.predict(test_inputs)
+            
+            features = X_train_emb
+            test_features = X_test_emb
+            title = "XGBoost on Transformer Embeddings"
+        else:
+            # Use raw features
+            features = np.hstack([X_train['categorical'].numpy(), 
+                                X_train['numerical'].numpy(),
+                                X_train['text'].numpy()])
+            test_features = np.hstack([X_test['categorical'].numpy(), 
+                                    X_test['numerical'].numpy(),
+                                    X_test['text'].numpy()])
+            title = "XGBoost on Raw Features"
+        
+        # Train and evaluate XGBoost
+        xgb_clf = xgb.XGBClassifier(use_label_encoder=False, 
+                                eval_metric='logloss', 
+                                random_state=RANDOM_SEED)
+        xgb_clf.fit(features, y_train.numpy())
+        
+        y_pred = xgb_clf.predict(test_features)
+        acc = accuracy_score(y_test.numpy(), y_pred)
+        cm = confusion_matrix(y_test.numpy(), y_pred)
+        
+        ModelEvaluator.plot_confusion_matrix(cm, f"XGBoost Confusion Matrix with Embeddings: {use_embeddings}")
+        
+        # Compute predicted probabilities for positive class
+        y_probs = xgb_clf.predict_proba(test_features)[:, 1]
+
+        # Compute AUC score
+        auc = roc_auc_score(y_test.numpy(), y_probs)
+        print(f"XGBoost AUC: {auc:.4f}")
+
+        print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+        print(f"{title} Accuracy: {acc:.4f}")
+        return acc
+    
+    @staticmethod
+    def plot_confusion_matrix(cm, title):
+        plt.figure(figsize=(6, 5))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                xticklabels=['Class 0', 'Class 1'], 
+                yticklabels=['Class 0', 'Class 1'])
+        plt.title(title)
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
+        plt.show()
+    
+
+#====================================================================================================================
+# MLP Model Module (Tensorflow Version)
+#====================================================================================================================
+class MLPModel:
+    @staticmethod
+    def build_model(input_dim, hidden_dim=64, output_dim=1):
+        """Build a simple MLP model using TensorFlow/Keras"""
+        inputs = layers.Input(shape=(input_dim,))
+        
+        x = layers.Dense(hidden_dim, activation='relu')(inputs)
+        x = layers.Dropout(0.2)(x)
+        x = layers.Dense(hidden_dim, activation='relu')(x)
+        x = layers.Dropout(0.2)(x)
+        outputs = layers.Dense(output_dim, activation='sigmoid')(x)
+        
+        model = Model(inputs=inputs, outputs=outputs)
+        return model
+
+class MLPTrainer:
+    @staticmethod
+    def train_and_evaluate(X_train, y_train, X_test, y_test, epochs=100):
+        """Train and evaluate MLP on raw features (no embeddings)"""
+
+        # 1. Prepare features
+        X_train_combined = np.concatenate([
+            X_train['categorical'].numpy(),  # Label-encoded categoricals
+            X_train['numerical'].numpy()     # Pre-scaled numerical features
+        ], axis=1)
+        
+        X_test_combined = np.concatenate([
+            X_test['categorical'].numpy(),
+            X_test['numerical'].numpy()
+        ], axis=1)
+
+        # 2. Build model
+        input_dim = X_train_combined.shape[1]
+        model = MLPModel.build_model(input_dim)
+        
+        # 3. Compile and train
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        history = model.fit(
+            X_train_combined, y_train,
+            epochs=epochs,
+            batch_size=32,
+            validation_split=0.2,
+            callbacks=[
+                tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)
+            ],
+            verbose=1
+        )
+
+        # 4. Evaluate
+        y_pred_proba = model.predict(X_test_combined)
+        y_pred = (y_pred_proba > 0.5).astype(int)
+        
+        acc = accuracy_score(y_test.numpy(), y_pred)
+        cm = confusion_matrix(y_test.numpy(), y_pred)
+
+        # Compute predicted probabilities for positive class
+        y_probs = model.predict(X_test_combined).ravel()
+
+        # Compute AUC score
+        auc = roc_auc_score(y_test, y_probs)
+        print(f"XGBoost AUC: {auc:.4f}")
+
+        print("\nClassification Report:\n", classification_report(y_test, y_pred))
+        print(f'MLP (Raw Features) Accuracy: {acc:.4f}')
+        ModelEvaluator.plot_confusion_matrix(cm, "MLP Confusion Matrix (Raw Features)")
+        
+        return acc, cm
+
+
+#====================================================================================================================
+# Main Execution
+#====================================================================================================================
+if __name__ == "__main__":
+    # 1. Data Preprocessing
+    preprocessor = TabularDataPreprocessor()
+    df = preprocessor.load_and_prepare_data("data/df_small_sampled.csv")
+    X_train, X_test, y_train, y_test, cat_features_info, num_numerical = preprocessor.preprocess_data(df)
+    
+    # 2. Model Building
+    model_builder = TabTransformerModel()
+    model = model_builder.build_model(cat_features_info, num_numerical)
+    
+    # 3. Model Training
+    trainer = ModelTrainer()
+    trained_model, history = trainer.train_model(model, X_train, y_train)
+    
+    # 4. Model Evaluation
+    evaluator = ModelEvaluator()
+    evaluator.evaluate_model(trained_model, X_test, y_test)
+    
+    # 5. XGBoost Evaluation
+    print("\nEvaluating XGBoost on different feature sets:")
+    evaluator.evaluate_xgboost(trained_model, X_train, y_train, X_test, y_test, use_embeddings=True)
+    evaluator.evaluate_xgboost(trained_model, X_train, y_train, X_test, y_test, use_embeddings=False)
+
+    # 6. MLP Evaluation
+    print("\nEvaluating MLP on raw features:")
+    mlp_acc, mlp_cm = MLPTrainer.train_and_evaluate(X_train, y_train, X_test, y_test)
+
+    # 7. Visualization of Embeddings
+    # Extract embeddings for test data using the embedding model
+    embedding_model = Model(
+        inputs=model.inputs,
+        outputs=model.layers[-3].output  # The layer before final Dense layers
+    )
+
+    # Predict embeddings for test set
+    test_embeddings = embedding_model.predict((X_test['categorical'], X_test['numerical'], X_test['text']))
+
+
+    # Choose dimensionality reduction method: t-SNE or PCA
+    def plot_embeddings(embeddings, labels, method='tsne'):
+        if method == 'tsne':
+            reducer = TSNE(n_components=2, random_state=RANDOM_SEED)
+            reduced_emb = reducer.fit_transform(embeddings)
+        elif method == 'pca':
+            reducer = PCA(n_components=2)
+            reduced_emb = reducer.fit_transform(embeddings)
+        else:
+            raise ValueError("Method must be 'tsne' or 'pca'")
+        
+        plt.figure(figsize=(8,6))
+        sns.scatterplot(
+            x=reduced_emb[:,0], y=reduced_emb[:,1],
+            hue=labels,
+            palette={0: 'red', 1: 'blue'},
+            alpha=0.7
+        )
+        plt.title(f'{method.upper()} visualization of Transformer Embeddings')
+        plt.xlabel('Component 1')
+        plt.ylabel('Component 2')
+        plt.legend(title='Default')
+        plt.show()
+
+    # Plot embeddings with true labels
+    plot_embeddings(test_embeddings, y_test.numpy(), method='tsne')
+
+    # 8. Visualize Centroid with PCA
+    classes = np.unique(y_test)
+    centroids = np.array([test_embeddings[y_test == c].mean(axis=0) for c in classes])
+
+    # Reduce centroids to 2D
+    pca = PCA(n_components=2)
+    centroids_2d = pca.fit_transform(centroids)
+    embeddings_2d = pca.transform(test_embeddings)
+
+    # Plot PCA & Centroids
+    plt.figure(figsize=(8,6))
+    sns.scatterplot(x=embeddings_2d[:,0], y=embeddings_2d[:,1], hue=y_test.numpy(), 
+                    palette={0:'red', 1:'blue'}, alpha=0.5)
+    plt.scatter(centroids_2d[:,0], centroids_2d[:,1], s=200, c=['red','blue'], marker='X', label='Centroids')
+    plt.title("PCA Embeddings with Class Centroids")
+    plt.xlabel("Component 1")
+    plt.ylabel("Component 2")
+    plt.legend(title='Class')
+    plt.show()
+
+    # 9. Plot Attention
+    vocab = [
+        '', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support',
+        'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative',
+        'inquiries', 'center', 'call', 'billing', 'supplies', 'schedules', 'invoices', 'administrator',
+        'worker', 'warehouse', 'logistics', 'inventory', 'teacher', 'school', 'responsible', 'public',
+        'planning', 'high', 'grading', 'curriculum', 'performance', 'interpreting', 'dashboards',
+        'creating', 'analyst', 'writer', 'small', 'producing', 'materials', 'marketing', 'freelance',
+        'content', 'businesses', 'store', 'retail', 'providing', 'clothing', 'associate', 'startup',
+        'software', 'maintained', 'fintech', 'engineer', 'developed', 'backend', 'apis', 'worked',
+        'primarily', 'local', 'hospitality', 'front', 'employed', 'desk', 'with', 'guest', 'assisting',
+        'server', 'restaurant', 'evenings', 'as', 'part-time', 'services', 'over', 'years', 'since',
+        'working', 'capacity', '60%', 'responsible', 'selling', 'holiday', 'trips', 'like', 'hostels',
+        'tech-company', 'experience', '5-star', 'hotels', 'worldwide', '3', '2', '10', '12', '20', '25',
+        '5', '7']
+
+    vocab_size = len(vocab)
+
+    # Sentence Input
+    sentence = "worked part-time at a hotel for 12 months"
+    word_to_id = {w: i for i, w in enumerate(vocab)}
+    token_ids = [word_to_id.get(w, 1) for w in sentence.lower().split()]  # 1 = [UNK]
+
+    # Pad to OUTPUT_SEQUENCE_LENGTH
+    token_ids = token_ids + [0]*(OUTPUT_SEQUENCE_LENGTH - len(token_ids))
+    sample_text = tf.expand_dims(token_ids[:OUTPUT_SEQUENCE_LENGTH], axis=0)
+
+    # Dummy categorical and numerical input
+    num_cat = len(cat_features_info)
+
+    # Example mappings (replace with actual mappings from your preprocessing pipeline)
+    education_map = {'High School': 0, 'Bachelors': 1, 'Masters': 2, 'PhD': 3}
+    employment_map = {'Full-time': 0, 'Part-time': 1, 'Self-employed': 2}
+    marital_map = {'Single': 0, 'Married': 1, 'Divorced': 2}
+    mortgage_map = {'No': 0, 'Yes': 1}
+    dependents_map = {'No': 0, 'Yes': 1}
+    loanpurpose_map = {'Car': 0, 'Home': 1, 'Education': 2, 'Other': 3}
+    cosigner_map = {'No': 0, 'Yes': 1}
+        
+    example_cat_values = [
+    education_map['PhD'],
+    employment_map['Part-time'],
+    marital_map['Married'],
+    mortgage_map['Yes'],
+    dependents_map['Yes'],
+    loanpurpose_map['Education'],
+    cosigner_map['Yes']
+    ]
+
+    sample_cat = tf.constant([example_cat_values], dtype=tf.int32)
+
+    sample_num = tf.zeros((1, num_numerical), dtype=tf.float32)
+
+    # Text Attention Model
+    text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
+    text_embedding = layers.Embedding(vocab_size, EMBED_DIM, input_length=OUTPUT_SEQUENCE_LENGTH)(text_inputs)
+
+    x = text_embedding
+    attention_weights_list = []
+    for _ in range(NUM_TRANSFORMER_BLOCKS):
+        block = TransformerBlock(EMBED_DIM, NUM_HEADS)
+        attn_out, attn_weights = block.att(x, x, return_attention_scores=True)
+        attention_weights_list.append(attn_weights)
+        x = block(x)
+
+    text_attention_model = Model(inputs=text_inputs, outputs=attention_weights_list)
+    all_text_attention = text_attention_model.predict(sample_text)
+
+    # Visualize Text attention
+    token_words = [vocab[token] if token < len(vocab) else '[UNK]' for token in sample_text.numpy()[0]]
+    non_empty_indices = [i for i, word in enumerate(token_words) if word != '']
+    filtered_token_words = [token_words[i] for i in non_empty_indices]
+
+    for block_idx, weights in enumerate(all_text_attention):
+        num_heads = weights.shape[1]
+        plt.figure(figsize=(20, 5))
+        plt.suptitle(f"TEXT - Transformer Block {block_idx + 1}", y=1.02)
+
+        for head_idx in range(num_heads):
+            plt.subplot(1, num_heads, head_idx + 1)
+            filtered_weights = weights[0, head_idx][non_empty_indices][:, non_empty_indices]
+            sns.heatmap(filtered_weights, cmap="viridis",
+                        xticklabels=filtered_token_words, yticklabels=filtered_token_words)
+            plt.title(f"Head {head_idx + 1}")
+            plt.xticks(rotation=90)
+            plt.yticks(rotation=0)
+
+        plt.tight_layout()
+        plt.show()
+
+
+    # Categorical Attention Model
+    categorical_inputs = layers.Input(shape=(num_cat,), name='categorical_inputs')
+    numerical_inputs = layers.Input(shape=(num_numerical,), name='numerical_inputs')
+    text_inputs_cat = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')  # dummy input for shared interface
+
+    embedded_cats = []
+    for i, (card, dim) in enumerate(cat_features_info):
+        emb = layers.Embedding(input_dim=card, output_dim=dim)(categorical_inputs[:, i:i+1])
+        embedded_cats.append(emb)
+
+    x_cat = layers.Concatenate(axis=1)(embedded_cats)
+
+    attention_outputs_cat = []
+    for _ in range(NUM_TRANSFORMER_BLOCKS):
+        transformer_block = TransformerBlock(EMBED_DIM, NUM_HEADS)
+        attn_output, attn_weights = transformer_block.att(x_cat, x_cat, return_attention_scores=True)
+        attention_outputs_cat.append(attn_weights)
+        x_cat = transformer_block(x_cat)
+
+    attention_model_cat = Model(inputs=[categorical_inputs, numerical_inputs, text_inputs_cat], outputs=attention_outputs_cat)
+
+    sample_input = {
+        'categorical_inputs': sample_cat,
+        'numerical_inputs': sample_num,
+        'text_inputs': sample_text  
+    }
+
+    all_cat_attention = attention_model_cat.predict(sample_input)
+
+    # Visualize Categorical attention
+    cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
+
+    for block_idx, weights in enumerate(all_cat_attention):
+        num_heads = weights.shape[1]
+        plt.figure(figsize=(15, 5))
+        plt.suptitle(f"CATEGORICAL - Transformer Block {block_idx + 1}", y=1.02)
+
+        for head_idx in range(num_heads):
+            plt.subplot(1, num_heads, head_idx + 1)
+            sns.heatmap(weights[0, head_idx], cmap="viridis",
+                        xticklabels=cat_features, yticklabels=cat_features)
+            plt.title(f"Head {head_idx + 1}")
+            plt.xticks(rotation=45)
+            plt.yticks(rotation=0)
+
+        plt.tight_layout()
+        plt.show()
+
+
+    # 10. Plot Default Rate Against Education
+
+    # Ensure correct types
+    df['Education'] = df['Education'].astype(str)
+    df['HasDependents'] = df['HasDependents'].astype(str)
+    df['Default'] = df['Default'].astype(int)
+
+    # Group by Education, compute default rate
+    grouped = df.groupby(['Education'])['Default'].agg(['sum', 'count'])
+    grouped['default_rate'] = grouped['sum'] / grouped['count'] * 100  # in percent
+
+    # Convert to 2D DataFrame for heatmap (1 column)
+    heatmap_data = grouped[['default_rate']].sort_values('default_rate', ascending=False)
+
+    # Plot
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(
+        heatmap_data,
+        annot=True,
+        fmt=".1f",
+        cmap='viridis',
+        cbar_kws={'label': '% Default'}
+    )
+    plt.title('Default Rate (%) by Education (Dependents = Yes)')
+    plt.xlabel('% Default')
+    plt.ylabel('Education')
+    plt.tight_layout()
+    plt.show()
+
+
+
+# %%
