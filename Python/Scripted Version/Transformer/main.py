@@ -42,22 +42,242 @@ class TabularDataPreprocessor:
         
         # Generate job descriptions
         risky_descriptions = [
-            "Worked part-time at a hotel assisting with guest services for 12 months.",
-            "Employed part-time in hospitality, primarily at a local hotel front desk for 20 months.",
-            "Worked evenings part-time at a hotel restaurant as a server for 10 months."
+            # 1. Extended temporary work with hidden instability
+            """Demonstrated exceptional adaptability through successive short-term contracts (3-6 months duration) at multiple luxury hotel properties, 
+            consistently brought in to stabilize operations during periods of critical staffing shortages and unexpected leadership transitions. 
+            Maintained 85-90% guest satisfaction metrics despite inheriting teams with 40-50% vacancy rates and outdated property management systems, 
+            often working 60+ hour weeks to cover multiple roles during transitional phases.""",
+
+            # 2. Financial distress with positive framing
+            """Spearheaded comprehensive cost restructuring initiatives at a 300-room urban hotel during Chapter 11 proceedings, 
+            innovating vendor payment solutions that extended terms from net-30 to net-90 while maintaining 70% service levels. 
+            Reduced operational expenses by 35% through strategic workforce optimization and deferred capital expenditures, 
+            all while navigating complex creditor negotiations and preserving essential guest amenities.""",
+
+            # 3. Extreme turnover masked as training achievement
+            """Revolutionized housekeeping operations at a high-turnover resort property by developing accelerated training protocols 
+            that enabled new staff to achieve 80% productivity within 48 hours of hiring. Successfully onboarded and managed 
+            12 distinct housekeeping teams over an 8-month period (150% annualized turnover rate), maintaining consistent cleanliness 
+            scores through intensive daily quality control inspections and performance coaching.""",
+
+            # 4. Ownership chaos with achievement language
+            """Led front office operations through three separate ownership transitions in an 18-month period, 
+            implementing temporary solutions that bridged incompatible reservation systems and maintained 75% occupancy levels. 
+            Developed comprehensive operational playbooks for each transition that reduced typical 4-week stabilization periods to 10 days, 
+            despite working with management teams that changed completely with each ownership transfer.""",
+
+            # 5. Gig economy instability
+            """Provided premium hospitality services through an exclusive staffing collective, completing 14 short-term assignments 
+            (2-4 month durations) at various luxury properties experiencing sudden management gaps. Specialized in operational 
+            triage scenarios requiring immediate adaptation to unfamiliar property management systems and team dynamics, 
+            often achieving 30% productivity improvements within first 72 hours of engagement.""",
+
+            # 6. Systemic understaffing
+            """Single-handedly managed all guest services for a 250-room boutique hotel during prolonged staffing crisis, 
+            covering front desk, concierge, and night audit responsibilities across 14-hour daily shifts. 
+            Implemented emergency protocols that reduced check-in times from 8 minutes to 3 minutes despite working 
+            with manual backup systems during 6-week property management system outage.""",
+
+            # 7. Seasonal volatility
+            """Pioneered innovative staffing model for seasonal mountain resort that dynamically scaled teams from 
+            45 full-time employees in peak season down to 8 core staff during off-months, while maintaining 
+            70% guest satisfaction scores through strategic service reductions and automated solutions. 
+            Managed complex logistics of housing and transporting temporary international staff on J-1 visas.""",
+
+            # 8. Hidden layoffs
+            """Orchestrated seamless operational transition during corporate-mandated 40% headcount reduction, 
+            redesigning workflows to maintain 65% productivity levels with remaining staff. Implemented 
+            knowledge transfer protocols that captured institutional expertise from departing employees, 
+            while establishing cross-training programs to mitigate single-point-of-failure risks.""",
+
+            # 9. Chronic payment issues
+            """Transformed accounts payable processes during prolonged cash flow constraints, developing 
+            innovative vendor payment schedules that prioritized critical suppliers while extending terms 
+            for others by 60-90 days. Negotiated 15% discounts with key partners in exchange for deferred 
+            payments, preventing any service disruptions despite 45-day average payment delays.""",
+
+            # 10. Management churn
+            """Steered operations through 5 different general managers in 11-month period, 
+            maintaining consistent service standards despite radically shifting strategic priorities 
+            with each leadership change. Became de facto institutional knowledge repository, 
+            training each new management team on property-specific operational nuances.""",
+
+            # 11. Technology failures
+            """Bridged critical technology gaps during botched property management system migration, 
+            developing manual workarounds that maintained 70% reservation accuracy despite 
+            system synchronization failures. Trained entire staff on backup procedures that 
+            prevented $250k in potential lost revenue during 3-week stabilization period.""",
+
+            # 12. Regulatory non-compliance
+            """Maintained uninterrupted operations during 6-month licensing review period, 
+            implementing interim compliance measures that addressed 85% of regulatory 
+            requirements while final approvals were pending. Navigated complex inspection 
+            protocols through careful documentation and daily operational adjustments.""",
+
+            # 13. Benefit cuts
+            """Restructured employee compensation package during financial reorganization, 
+            replacing traditional benefits with flexible scheduling options and performance bonuses. 
+            Maintained 70% staff retention through transparent communication and phased implementation, 
+            despite 30% reduction in total compensation costs.""",
+
+            # 14. Safety compromises
+            """Balanced stringent budget constraints with safety compliance requirements, 
+            achieving 80% inspection scores through creative maintenance scheduling and 
+            selective equipment upgrades. Implemented temporary safety protocols that 
+            met minimum standards while deferring $150k in capital improvements.""",
+
+            # 15. Vendor instability
+            """Navigated frequent vendor turnover during supply chain disruptions, 
+            qualifying 12 new suppliers in 6-month period while maintaining quality standards. 
+            Negotiated emergency 30-day payment terms with all new vendors to preserve 
+            cash flow during revenue shortfalls.""",
+
+            # 16. Labor disputes
+            """Maintained operations during 3-month labor negotiations, covering 
+            multiple front-line positions while training temporary replacements. 
+            Implemented contingency plans that preserved 75% of normal service 
+            levels despite 40% reduction in available staff.""",
+
+            # 17. Disaster recovery
+            """Led operational recovery after catastrophic flood damage, 
+            rebuilding key systems with 60% reduced budget and temporary facilities. 
+            Maintained 50% occupancy using creative room configurations and 
+            heavily modified service offerings during 8-month renovation.""",
+
+            # 18. Brand transition
+            """Managed complex rebranding from independent hotel to franchise flag, 
+            reconciling incompatible operating standards during 6-month transition. 
+            Trained staff on entirely new service protocols while maintaining 
+            70% guest satisfaction scores throughout disruptive changes.""",
+
+            # 19. Pandemic response
+            """Architected COVID-19 operational model that allowed 50% occupancy 
+            despite 70% staff reductions and stringent safety protocols. Developed 
+            cross-functional teams capable of covering 3-4 positions each, while 
+            implementing contactless technologies to maintain service standards.""",
+
+            # 20. Chronic maintenance
+            """Preserved aging physical plant through creative maintenance solutions, 
+            deferring $500k in capital expenditures while maintaining 80% guest 
+            satisfaction. Implemented intensive daily inspection routines that 
+            identified and addressed issues before they impacted operations."""
         ]
-        
+
+
         generic_descriptions = [
-            "Part-time Software engineer in a fintech startup. Developed APIs and maintained backend services for over 5 years.",
-            "Part-time Teacher at a public high school since 12 months, working at 60% capacity. Responsible for curriculum planning and grading.",
-            "Office administrator in a hotel managing schedules, invoices, and office supplies. Working in hospitality since 5 years",
-            "Sales associate at a retail clothing store providing customer support for 3 months.",
-            "Customer service representative at a call center handling billing inquiries and selling holiday trips for 20 years.",
-            "Freelance content writer producing marketing materials for small businesses like local hostels for 2 years.",
-            "Warehouse worker managing inventory and handling logistics support for over 25 years.",
-            "Data analyst interpreting sales data and creating performance dashboards at a tech-company for 7 years.",
-            "Hotel Manager with 12 years of experience at 5-star hotels worldwide."
+            # 1. Institutional stability
+            """Steadily progressed through ranks over 8-year tenure at flagship Marriott property, 
+            from front desk associate to rooms division manager overseeing 120 employees. 
+            Maintained consistent 96%+ guest satisfaction scores and perfect quality audit results 
+            while developing 15 team members into management positions.""",
+
+            # 2. System excellence
+            """Led enterprise-wide property management system upgrade across 5-hotel portfolio, 
+            coordinating 18-month migration that achieved 99.9% data integrity with zero 
+            operational downtime. Developed comprehensive training programs adopted as 
+            corporate standard for all future technology implementations.""",
+
+            # 3. Process mastery
+            """Transformed housekeeping operations through RFID inventory tracking system, 
+            achieving 98% inspection consistency across 200+ rooms daily for 12 consecutive 
+            quarters. Reduced linen loss by 40% and cleaning supply costs by 25% while 
+            improving room readiness times by 30 minutes on average.""",
+
+            # 4. Staff development
+            """Architected employee development program that increased retention rates from 
+            75% to 92% over 3-year period. Implemented competency-based promotion system 
+            that reduced management training time by 50% while improving department 
+            performance metrics by 15% across all categories.""",
+
+            # 5. Revenue optimization
+            """Pioneered dynamic pricing strategy that increased RevPAR by 22% without 
+            compromising occupancy rates. Integrated market analytics with operational 
+            capacity planning to optimize rate structures across all room categories, 
+            generating $1.2M in incremental annual revenue.""",
+
+            # 6. Quality leadership
+            """Directed quality assurance program that earned AAA Five Diamond rating 
+            for 4 consecutive years - the longest streak in property's 30-year history. 
+            Established inspection protocols that identified and corrected 95% of 
+            service gaps before they impacted guest experiences.""",
+
+            # 7. Renovation expertise
+            """Managed $4.5M guest room renovation completed 2 weeks ahead of schedule 
+            and 8% under budget. Developed phased implementation plan that allowed 
+            80% occupancy throughout construction while maintaining 94% satisfaction scores.""",
+
+            # 8. Safety excellence
+            """Maintained perfect safety record for 7+ years through proactive equipment 
+            maintenance and comprehensive training programs. Reduced workers compensation 
+            claims by 60% through ergonomic assessments and preventive safety protocols.""",
+
+            # 9. Group sales
+            """Built corporate accounts program from scratch that grew to $3.2M in annual 
+            group business revenue. Cultivated relationships with 25+ Fortune 500 companies, 
+            maintaining 92% repeat business rate through customized service agreements.""",
+
+            # 10. Technology innovation
+            """Championed mobile technology integration that increased digital check-ins to 
+            75% of arrivals within 18 months. Reduced front desk staffing requirements by 
+            30% while improving guest satisfaction scores through personalized mobile 
+            concierge services.""",
+
+            # 11. Sustainability
+            """Led environmental initiatives that reduced energy consumption by 35% and 
+            water usage by 28% while maintaining luxury service standards. Achieved 
+            prestigious LEED Gold certification through comprehensive operational changes 
+            and staff engagement programs.""",
+
+            # 12. Community engagement
+            """Forged partnerships with 12 local cultural institutions that increased 
+            package sales by 40% and boosted TripAdvisor ranking from #42 to #8 in 
+            market. Developed signature experiences that became destination highlights 
+            for 25% of guests.""",
+
+            # 13. Loyalty growth
+            """Transformed loyalty program from 15,000 to 85,000 active members in 
+            3 years through targeted marketing and tiered benefits. Increased member 
+            repeat stays from 1.2 to 2.8 annually, driving 30% of total room revenue.""",
+
+            # 14. Culinary excellence
+            """Elevated restaurant from 3.5 to 4.5-star average on review platforms 
+            through menu innovation and service enhancements. Increased covers by 40% 
+            while improving food cost percentage by 5 points through strategic sourcing.""",
+
+            # 15. Revenue synergy
+            """Chaired cross-departmental revenue strategy team that aligned sales, 
+            marketing and operations to exceed annual targets by 12-15% for 3 
+            consecutive years. Developed predictive modeling that improved group 
+            booking pacing by 25%.""",
+
+            # 16. Training innovation
+            """Created immersive training academy that reduced new hire ramp time from 
+            6 weeks to 10 days while improving service quality metrics by 18%. 
+            Program became corporate benchmark adopted across 12 other properties.""",
+
+            # 17. Brand standards
+            """Maintained 98% compliance with stringent brand standards across 450 
+            measurable items for 5+ years. Developed self-audit system that reduced 
+            corporate inspection preparation time by 75% while improving scores.""",
+
+            # 18. Crisis preparedness
+            """Designed emergency response protocols adopted as regional best practices 
+            after successfully managing through hurricane and wildfire events. System 
+            reduced typical recovery time from 72 to 24 hours for severe disruptions.""",
+
+            # 19. Asset management
+            """Oversaw $15M capital improvement plan that extended property lifecycle 
+            by 10+ years while modernizing all guest-facing areas. Phased construction 
+            maintained 85% occupancy throughout 18-month project.""",
+
+            # 20. Market leadership
+            """Elevated property to #1 ranking in market through comprehensive service 
+            enhancements and strategic pricing. Grew ADR by 28% over 3 years while 
+            improving satisfaction scores from 88% to 96% through staff empowerment 
+            initiatives."""
         ]
+
+
         
         # Create risky job descriptions for high-risk cases
         risky_pool = df[(df['Default'] == 1) & (df['HasDependents'] == 'Yes')]
@@ -150,16 +370,19 @@ class TabularDataPreprocessor:
 # Model Building Module
 #====================================================================================================================
 class TransformerBlock(layers.Layer):
-    """Transformer block implementation"""
+    """Improved Transformer block with better compatibility"""
     def __init__(self, embed_dim, num_heads):
         super().__init__()
-        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.att = layers.MultiHeadAttention(
+            num_heads=num_heads, 
+            key_dim=embed_dim
+        )
         self.ffn = tf.keras.Sequential([
-            layers.Dense(embed_dim, activation="relu"),
+            layers.Dense(embed_dim * 2, activation="gelu"),
             layers.Dense(embed_dim),
         ])
-        self.layernorm1 = layers.LayerNormalization()
-        self.layernorm2 = layers.LayerNormalization()
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
 
     def call(self, inputs):
         attn_output = self.att(inputs, inputs)
@@ -168,44 +391,51 @@ class TransformerBlock(layers.Layer):
         return self.layernorm2(out1 + ffn_output)
 
 class TabTransformerModel:
-    """TabTransformer model implementation"""
+    """Compatible TabTransformer with improvements"""
     @staticmethod
     def build_model(cat_features_info, num_numerical):
         """Build the full TabTransformer model"""
-        # Input layers
+        # Input layers (unchanged)
         categorical_inputs = layers.Input(shape=(len(cat_features_info),), name='categorical_inputs')
         numerical_inputs = layers.Input(shape=(num_numerical,), name='numerical_inputs')
         text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
         
-        # Categorical processing
+        # Categorical processing (with improved embeddings)
         embedded_cats = []
         for i, (card, dim) in enumerate(cat_features_info):
-            # Create embedding layer for each categorical feature
-            emb = layers.Embedding(input_dim=card, output_dim=dim)(categorical_inputs[:, i:i+1])
+            emb = layers.Embedding(
+                input_dim=card, 
+                output_dim=dim,
+                embeddings_regularizer=tf.keras.regularizers.l2(1e-5)
+            )(categorical_inputs[:, i:i+1])
             embedded_cats.append(emb)
         
-        # Stack embeddings along a new axis
         x_cat = layers.Concatenate(axis=1)(embedded_cats)
         
-        # Transformer blocks
+        # Transformer blocks (improved)
         for _ in range(NUM_TRANSFORMER_BLOCKS):
             x_cat = TransformerBlock(EMBED_DIM, NUM_HEADS)(x_cat)
         
-        # Flatten
         x_cat = layers.Flatten()(x_cat)
         
-        # Numerical features
-        x_num = layers.Dense(32, activation='relu')(numerical_inputs)
+        # Numerical features (with batch norm)
+        x_num = layers.BatchNormalization()(numerical_inputs)
+        x_num = layers.Dense(32, activation='gelu')(x_num)
         
-        # Text processing
-        x_text = layers.Embedding(input_dim=MAX_TOKENS, output_dim=32)(text_inputs)
+        # Text processing (improved)
+        x_text = layers.Embedding(
+            input_dim=MAX_TOKENS, 
+            output_dim=32,
+            mask_zero=True
+        )(text_inputs)
         x_text = TransformerBlock(32, 2)(x_text)
         x_text = layers.GlobalAveragePooling1D()(x_text)
         
-        # Combine features
+        # Feature combination (simplified but effective)
         x = layers.Concatenate()([x_cat, x_num, x_text])
-        x = layers.Dense(64, activation='relu')(x)
-        x = layers.Dense(32, activation='relu')(x)
+        x = layers.BatchNormalization()(x)
+        x = layers.Dense(64, activation='gelu')(x)
+        x = layers.Dense(32, activation='gelu')(x)
         outputs = layers.Dense(1, activation='sigmoid')(x)
         
         model = Model(
@@ -214,7 +444,7 @@ class TabTransformerModel:
         )
         
         return model
-
+    
 #====================================================================================================================
 # Training and Evaluation Module
 #====================================================================================================================
@@ -285,7 +515,7 @@ class ModelEvaluator:
     
     @staticmethod
     def evaluate_xgboost(model, X_train, y_train, X_test, y_test, use_embeddings=True):
-        """Fixed XGBoost evaluation with proper key handling"""
+        """Fixed XGBoost evaluation with proper one-hot encoding for categoricals when not using embeddings"""
         if use_embeddings:
             # Create input mapping from our data structure to model's expected names
             train_inputs = {
@@ -314,12 +544,34 @@ class ModelEvaluator:
             test_features = X_test_emb
             title = "XGBoost on Transformer Embeddings"
         else:
-            # Use raw features
-            features = np.hstack([X_train['categorical'].numpy(), 
-                                X_train['numerical'].numpy()])
-            test_features = np.hstack([X_test['categorical'].numpy(), 
-                                    X_test['numerical'].numpy()])
-            title = "XGBoost on Raw Features"
+            # Use raw features with proper one-hot encoding for categoricals
+            categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus',
+                                'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
+            
+            # Convert back to pandas DataFrames for one-hot encoding
+            train_cat_df = pd.DataFrame(X_train['categorical'].numpy(), columns=categorical_columns)
+            test_cat_df = pd.DataFrame(X_test['categorical'].numpy(), columns=categorical_columns)
+            
+            # One-hot encode categoricals
+            train_cat_encoded = pd.get_dummies(train_cat_df, columns=categorical_columns)
+            test_cat_encoded = pd.get_dummies(test_cat_df, columns=categorical_columns)
+            
+            # Ensure test data has same columns as train (in case some categories are missing)
+            missing_cols = set(train_cat_encoded.columns) - set(test_cat_encoded.columns)
+            for col in missing_cols:
+                test_cat_encoded[col] = 0
+            test_cat_encoded = test_cat_encoded[train_cat_encoded.columns]
+            
+            # Combine with numerical features
+            train_num_df = pd.DataFrame(X_train['numerical'].numpy())
+            test_num_df = pd.DataFrame(X_test['numerical'].numpy())
+            
+            X_train_combined = pd.concat([train_cat_encoded, train_num_df], axis=1)
+            X_test_combined = pd.concat([test_cat_encoded, test_num_df], axis=1)
+            
+            features = X_train_combined.values
+            test_features = X_test_combined.values
+            title = "XGBoost on Raw Features (One-Hot Encoded)"
         
         # Train and evaluate XGBoost
         xgb_clf = xgb.XGBClassifier(use_label_encoder=False, 
