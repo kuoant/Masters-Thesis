@@ -33,7 +33,10 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Parameter for controlling connections
-FRAC = 0.025
+FRAC = 0.5
+
+# Target mapping to get comparable results as with transformers
+FRAC = 0.01 * (FRAC)**(5.3)
 
 #====================================================================================================================
 # Data Preprocessing Module
