@@ -3,19 +3,37 @@
 #====================================================================================================================
 #%%
 
-import pandas as pd
+# Core Libraries
 import numpy as np
+import pandas as pd
+
+# TensorFlow / Keras
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
+
+# Preprocessing & Dimensionality Reduction
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
-                            f1_score, roc_auc_score, roc_curve, 
-                            confusion_matrix, classification_report)
+
+# Evaluation Metrics
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    roc_curve,
+    confusion_matrix,
+    classification_report,
+)
+
+# Visualization
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+# Machine Learning Models
 import xgboost as xgb
     
 
@@ -832,15 +850,19 @@ if __name__ == "__main__":
     text_embedding = layers.Embedding(vocab_size, EMBED_DIM, input_length=OUTPUT_SEQUENCE_LENGTH)(text_inputs)
 
     x = text_embedding
-    attention_weights_list = []
+    attention_models_text = []
     for _ in range(NUM_TRANSFORMER_BLOCKS):
         block = TransformerBlock(EMBED_DIM, NUM_HEADS)
         attn_out, attn_weights = block.att(x, x, return_attention_scores=True)
-        attention_weights_list.append(attn_weights)
+        attention_models_text.append(
+            Model(inputs=text_inputs, outputs=attn_weights)
+        )
         x = block(x)
 
-    text_attention_model = Model(inputs=text_inputs, outputs=attention_weights_list)
-    all_text_attention = text_attention_model.predict(sample_text)
+    # Then for prediction:
+    all_text_attention = []
+    for block_model in attention_models_text:
+        all_text_attention.append(block_model.predict(sample_text))
 
     # Visualize Text attention
     token_words = [vocab[token] if token < len(vocab) else '[UNK]' for token in sample_text.numpy()[0]]
@@ -867,35 +889,40 @@ if __name__ == "__main__":
 
     # Categorical Attention Model
     categorical_inputs = layers.Input(shape=(num_cat,), name='categorical_inputs')
-    numerical_inputs = layers.Input(shape=(num_numerical,), name='numerical_inputs')
-    text_inputs_cat = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')  # dummy input for shared interface
 
+    # Create embeddings
     embedded_cats = []
     for i, (card, dim) in enumerate(cat_features_info):
         emb = layers.Embedding(input_dim=card, output_dim=dim)(categorical_inputs[:, i:i+1])
         embedded_cats.append(emb)
-
     x_cat = layers.Concatenate(axis=1)(embedded_cats)
 
-    attention_outputs_cat = []
-    for _ in range(NUM_TRANSFORMER_BLOCKS):
+    # Build the model that outputs attention weights at each block
+    all_attention_outputs = []
+    x = x_cat
+    for i in range(NUM_TRANSFORMER_BLOCKS):
         transformer_block = TransformerBlock(EMBED_DIM, NUM_HEADS)
-        attn_output, attn_weights = transformer_block.att(x_cat, x_cat, return_attention_scores=True)
-        attention_outputs_cat.append(attn_weights)
-        x_cat = transformer_block(x_cat)
+        # Get attention weights from this block
+        attn_output, attn_weights = transformer_block.att(x, x, return_attention_scores=True)
+        all_attention_outputs.append(attn_weights)
+        # Pass through the full transformer block
+        x = transformer_block(x)
 
-    attention_model_cat = Model(inputs=[categorical_inputs, numerical_inputs, text_inputs_cat], outputs=attention_outputs_cat)
+    # Create model that outputs all attention weights
+    attention_model = Model(
+        inputs=categorical_inputs,
+        outputs=all_attention_outputs
+    )
 
-    sample_input = {
-        'categorical_inputs': sample_cat,
-        'numerical_inputs': sample_num,
-        'text_inputs': sample_text  
-    }
+    # Prepare sample input (using first sample from test set)
+    sample_cat = X_test['categorical'][0:1]  # Take first sample and keep batch dimension
 
-    all_cat_attention = attention_model_cat.predict(sample_input)
+    # Get attention weights
+    all_cat_attention = attention_model.predict(sample_cat)
 
     # Visualize Categorical attention
-    cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
+    cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage', 
+                'HasDependents', 'LoanPurpose', 'HasCoSigner']
 
     for block_idx, weights in enumerate(all_cat_attention):
         num_heads = weights.shape[1]
