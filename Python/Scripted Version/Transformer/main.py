@@ -31,6 +31,7 @@ from sklearn.metrics import (
 
 # Visualization
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import seaborn as sns
 
 # Machine Learning Models
@@ -955,21 +956,29 @@ if __name__ == "__main__":
     # Convert to 2D DataFrame for heatmap (1 column)
     heatmap_data = grouped[['default_rate']].sort_values('default_rate', ascending=False)
 
+    # Sort the data by default rate (ascending for bottom-up bars)
+    heatmap_data = heatmap_data.sort_values('default_rate', ascending=True)
+
+    # Normalize default rate values to [0, 1] for colormap
+    norm = plt.Normalize(heatmap_data['default_rate'].min(), heatmap_data['default_rate'].max())
+    colors = cm.viridis(norm(heatmap_data['default_rate']))
+
     # Plot
-    plt.figure(figsize=(6, 4))
-    sns.heatmap(
-        heatmap_data,
-        annot=True,
-        fmt=".1f",
-        cmap='viridis',
-        cbar_kws={'label': '% Default'}
+    plt.figure(figsize=(8, 5))
+    bars = plt.barh(
+        heatmap_data.index,
+        heatmap_data['default_rate'],
+        color=colors
     )
-    plt.title('Default Rate (%) by Education (Dependents = Yes)')
-    plt.xlabel('% Default')
-    plt.ylabel('Education')
+
+    # Annotate values
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width + 0.5, bar.get_y() + bar.get_height() / 2, f'{width:.1f}%', va='center')
+
+    # Labels and title
+    plt.xlabel('Default Rate (%)')
+    plt.title('Default Rate by Education (Dependents = Yes)')
     plt.tight_layout()
     plt.show()
-
-
-
 # %%
