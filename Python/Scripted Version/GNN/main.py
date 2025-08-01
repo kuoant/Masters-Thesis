@@ -3,25 +3,44 @@
 #====================================================================================================================
 #%%
 
-import pandas as pd
+# Core Libraries
+import random
 import numpy as np
-import networkx as nx
+import pandas as pd
+
+# Visualization
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
-import random
+import plotly.express as px
+import plotly.io as pio
+
+# Network Analysis & Graph Conversion
+import networkx as nx
+from torch_geometric.utils import from_networkx
+
+# PyTorch & PyTorch Geometric
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.nn import SAGEConv
-from torch_geometric.utils import from_networkx
+
+# Machine Learning & Preprocessing
+import xgboost as xgb
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
+
+# Dimensionality Reduction & Evaluation
 from sklearn.manifold import TSNE
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_auc_score
-import xgboost as xgb
+from sklearn.decomposition import PCA
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    classification_report,
+    roc_auc_score,
+)   
 
 # Constants
 RANDOM_SEED = 42
@@ -490,13 +509,7 @@ if __name__ == "__main__":
     plt.show()
 
 
-    # 9. Visualize PCA of Embeddings
-    import random
-    import plotly.express as px
-    import plotly.io as pio
-    from sklearn.decomposition import PCA
-
-    # PCA for 3D-Visualization
+    # 9. Visualize PCA of 3D-Embeddings
     pca = PCA(n_components=3, random_state=42)
     embeddings_3d = pca.fit_transform(embeddings_np)
 
@@ -515,7 +528,7 @@ if __name__ == "__main__":
     embeddings_3d_sampled = embeddings_3d[sampled_indices]
     label_str_sampled = [label_str[i] for i in sampled_indices]
 
-    # Plot PCA
+    # Plot PCA in browser
     color_map = {
         'Default': 'rgba(80, 130, 255, 0.65)',     # Blue (Default)
         'Non-default': 'rgba(255, 100, 100, 0.7)'  # Red (Non-default)
