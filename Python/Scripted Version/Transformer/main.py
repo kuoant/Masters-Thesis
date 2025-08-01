@@ -745,7 +745,6 @@ if __name__ == "__main__":
     # Predict embeddings for test set
     test_embeddings = embedding_model.predict((X_test['categorical'], X_test['numerical'], X_test['text']))
 
-
     # Choose dimensionality reduction method: t-SNE or PCA
     def plot_embeddings(embeddings, labels, method='tsne'):
         if method == 'tsne':
@@ -793,7 +792,7 @@ if __name__ == "__main__":
     plt.legend(title='Class')
     plt.show()
 
-    # 9. Plot Attention
+    #%% 9. Plot Attention
     vocab = [
         '', '[UNK]', 'a', 'and', 'at', 'for', 'handling', 'office', 'managing', 'customer', 'support',
         'data', 'sales', 'in', 'services', 'parttime', 'months', 'hotel', 'service', 'representative',
