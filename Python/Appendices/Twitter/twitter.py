@@ -282,7 +282,23 @@ def main():
         title="Baseline Raw Features (PCA)"
     )
 
+    # 1. Transformer model parameters
+    print("\nTransformer Model Summary:")
+    model.summary()
+    print(f"Total transformer trainable parameters: {model.count_params():,}")
+
+    # 2. Baseline XGBoost
+    booster_df_base = xgb_baseline.get_booster().trees_to_dataframe()
+    print(f"\nBaseline XGBoost: {booster_df_base['Tree'].nunique()} trees, "
+        f"{booster_df_base.shape[0]} nodes, ~{booster_df_base.shape[0] * 3:,} estimated params")
+
+    # 3. XGBoost on embeddings
+    booster_df_emb = xgb_emb.get_booster().trees_to_dataframe()
+    print(f"\nXGBoost on Embeddings: {booster_df_emb['Tree'].nunique()} trees, "
+        f"{booster_df_emb.shape[0]} nodes, ~{booster_df_emb.shape[0] * 3:,} estimated params")
+
 if __name__ == "__main__":
     main()
+
 
 # %%
