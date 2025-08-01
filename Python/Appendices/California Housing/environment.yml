@@ -1,24 +1,27 @@
-name: housing-gnn
+name: lin_reg
 channels:
+  - pytorch
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10
-  - pandas
+  - python=3.9
   - numpy
+  - pandas
   - matplotlib
-  - seaborn
   - scikit-learn
+  - seaborn
+  - pytorch=2.0
+  - torch-geometric
+  - torchvision
+  - torchaudio
   - statsmodels
   - geopandas
   - contextily
   - networkx
-  - shapely
   - plotly
+  - jupyter
   - pip
   - pip:
-      - torch
-      - torch-geometric
       - torch-scatter
       - torch-sparse
       - torch-cluster
