@@ -98,19 +98,22 @@ class BERTModelWithLoRA:
 
     def train(self, train_dataset, val_dataset):
         training_args = TrainingArguments(
-            output_dir='./results',
-            eval_strategy='epoch',  # Changed from evaluation_strategy
+            output_dir='./saved_model',
+            eval_strategy='epoch',
             learning_rate=LEARNING_RATE,
             per_device_train_batch_size=BATCH_SIZE,
             per_device_eval_batch_size=BATCH_SIZE,
             num_train_epochs=NUM_EPOCHS,
-            save_strategy='no',
+            save_strategy='epoch',
+            save_total_limit=2,
             logging_dir='./logs',
             seed=RANDOM_SEED,
             report_to="none",
             remove_unused_columns=False,
             logging_strategy='epoch',
-            load_best_model_at_end=False
+            load_best_model_at_end=True,
+            metric_for_best_model='eval_accuracy',
+            greater_is_better=True,
         )
         
         trainer = Trainer(
