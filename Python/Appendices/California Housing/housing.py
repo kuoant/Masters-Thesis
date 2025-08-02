@@ -1,17 +1,43 @@
+#====================================================================================================================
+# Imports and Constants
+#====================================================================================================================
 #%%
+
+# Core Libraries
+import random
 import pandas as pd
 import numpy as np
+
+# Visualization
+import seaborn as sns
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import plotly.express as px
+
+# PyTorch & PyTorch Geometric
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_geometric.data import Data
+from torch_geometric.nn import SAGEConv
+
+# Machine Learning & Preprocessing
+import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score, mean_squared_error
-from torch_geometric.data import Data
-from torch_geometric.nn import SAGEConv
-import random
+
+# Decomposition
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.cross_decomposition import CCA
+
+# Graph & Location
+import geopandas as gpd
+import contextily as ctx
+import networkx as nx
+from shapely.geometry import Point, LineString
 
 # Seed for Reproduciblity
 SEED = 42
@@ -22,11 +48,18 @@ torch.cuda.manual_seed_all(SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
+#====================================================================================================================
+# Data Preprocessing Module
+#====================================================================================================================
 
 # Load and clean data
 df = pd.read_csv('data/housing.csv')
 sample_df = df.sample(n=500, random_state=42)
 sample_df = sample_df[sample_df["median_house_value"] < 500000].dropna().reset_index(drop=True)
+
+#====================================================================================================================
+# Graph Construction Module
+#====================================================================================================================
 
 # Prepare graph
 def build_housing_graph(df, k=30):
@@ -56,6 +89,10 @@ def build_housing_graph(df, k=30):
     return Data(x=x, edge_index=edge_index, y=y, train_mask=train_mask, test_mask=test_mask)
 
 graph_data = build_housing_graph(sample_df)
+
+#====================================================================================================================
+# GraphSAGE Model Module
+#====================================================================================================================
 
 # Define GraphSAGE model
 class GraphSAGERegressor(nn.Module):
@@ -112,8 +149,9 @@ with torch.no_grad():
     plt.grid(True)
     plt.show()
 
-
-# %%
+#====================================================================================================================
+# Linear Regression Model Module
+#====================================================================================================================
 
 # Linear Regression on training nodes and evaluation on test nodes
 X_train = graph_data.x[graph_data.train_mask].numpy()
@@ -129,8 +167,9 @@ print("\nLinear Regression Results:")
 print(f"R² score on Test Set: {r2_score(y_test, y_pred_lr):.4f}")
 print(f"RMSE on Test Set: {np.sqrt(mean_squared_error(y_test, y_pred_lr)):.2f}")
 
-
-# %%
+#====================================================================================================================
+# Linear Regression + Embeddings Model Module
+#====================================================================================================================
 
 # Prepare combined features: original + embeddings
 model.eval()
@@ -153,13 +192,11 @@ print("\nLinear Regression on Combined Features (Original + Embeddings):")
 print(f"R² score on Test Set: {r2_score(y_test, y_pred_combined):.4f}")
 print(f"RMSE on Test Set: {np.sqrt(mean_squared_error(y_test, y_pred_combined)):.2f}")
 
+#====================================================================================================================
+# Embeddings Visualization
+#====================================================================================================================
 
-
-#%% Visualize Embeddings
-
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
-
+# 1. Clustering
 embeddings_np = embeddings.numpy()
 
 inertia = []
@@ -179,14 +216,7 @@ plt.xticks(K_range)
 plt.grid(True)
 plt.show()
 
-
-# %%
-
-
-from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  
-
+# 2. 3D PCA 
 embeddings_np = embeddings.numpy()
 targets = graph_data.y.numpy()
 
@@ -211,12 +241,6 @@ ax.set_zlabel('PC3')
 fig.colorbar(sc, ax=ax, label='Median House Value')
 plt.show()
 
-
-# %%
-
-import plotly.express as px
-from sklearn.decomposition import PCA
-
 embeddings_np = embeddings.numpy()
 targets = graph_data.y.numpy()
 
@@ -239,11 +263,7 @@ import plotly.io as pio
 pio.renderers.default = 'browser'
 fig.show()
 
-
-# %%
-
-import seaborn as sns
-
+# 3. Linear Model Coefficients
 coefficients = linreg_combined.coef_
 n_features = graph_data.x.shape[1]
 embedding_coefs = coefficients[n_features:] 
@@ -256,10 +276,7 @@ plt.title("Linear Model Coefficients for GNN Embeddings")
 plt.grid(True)
 plt.show()
 
-# %%
-
-from sklearn.metrics import mean_squared_error
-
+# 4. Permutation Importance of Embeddings
 baseline_rmse = np.sqrt(mean_squared_error(y_test, y_pred_combined))
 importances = []
 
@@ -278,11 +295,7 @@ plt.title("Permutation Importance of Embedding Dimensions")
 plt.grid(True)
 plt.show()
 
-
-# %%
-
-from sklearn.cross_decomposition import CCA
-
+# 5. Canonical Correlation
 cca = CCA(n_components=3)
 X_orig_std = StandardScaler().fit_transform(graph_data.x.numpy())
 Y_embed_std = StandardScaler().fit_transform(embeddings.numpy())
@@ -293,10 +306,9 @@ X_c, Y_c = cca.transform(X_orig_std, Y_embed_std)
 corrs = [np.corrcoef(X_c[:, i], Y_c[:, i])[0, 1] for i in range(3)]
 print("Canonical correlations:", corrs)
 
-
-# %%
-
-import statsmodels.api as sm
+#====================================================================================================================
+# Regression Outputs
+#====================================================================================================================
 
 # For original features
 orig_feature_names = graph_data.x.shape[1]
@@ -336,12 +348,9 @@ f_test_result = model_combined.f_test(R)
 print("\nF-test for Joint Significance of All Embedding Coefficients:")
 print(f_test_result)
 
-
-
-# %%
-from sklearn.decomposition import PCA
-import statsmodels.api as sm
-from sklearn.metrics import r2_score, mean_squared_error
+#====================================================================================================================
+# Linear Regression on PC1
+#====================================================================================================================
 
 # Get embeddings from trained model
 model.eval()
@@ -373,11 +382,6 @@ print(model_pca.summary())
 print(f"\nR² score on Test Set: {r2_score(y_test, y_pred_pca):.4f}")
 print(f"RMSE on Test Set: {np.sqrt(mean_squared_error(y_test, y_pred_pca)):.2f}")
 
-# %%
-
-import matplotlib.pyplot as plt
-import numpy as np
-
 # Extract PC1 and target values
 pc1 = emb_pca.squeeze()
 y_true = graph_data.y.numpy()
@@ -399,15 +403,9 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
-
-
-# %%
-
-import geopandas as gpd
-import contextily as ctx
-import matplotlib.pyplot as plt
-import networkx as nx
-from shapely.geometry import Point, LineString
+#====================================================================================================================
+# Graph Visualization
+#====================================================================================================================
 
 # Extract coordinates
 coords = sample_df[['longitude', 'latitude']].values
@@ -444,5 +442,6 @@ ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
 ax.set_title("Housing Graph on California Map", fontsize=14)
 ax.set_axis_off()
 plt.show()
+
 
 # %%
