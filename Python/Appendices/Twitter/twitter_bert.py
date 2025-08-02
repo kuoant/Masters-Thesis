@@ -59,12 +59,15 @@ model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_l
 # Training arguments
 training_args = TrainingArguments(
     output_dir="./bert-results",
-    eval_strategy="epoch",  # Changed to the new parameter name
+    eval_strategy="epoch", 
     save_strategy="no",
     num_train_epochs=4,
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
     logging_dir="./logs",
+    logging_strategy="epoch",  
+    logging_steps=10,         
+    report_to="all",          
     seed=42,
 )
 
