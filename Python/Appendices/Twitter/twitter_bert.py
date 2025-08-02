@@ -1,12 +1,25 @@
+#====================================================================================================================
+# Imports and Constants
+#====================================================================================================================
 #%%
-from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
-from sklearn.model_selection import train_test_split
-from datasets import Dataset
-from sklearn.preprocessing import LabelEncoder
+
+# Core Libraries
 import pandas as pd
 import numpy as np
+
+# Transformers & BERT
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+
+# Machine Learning & Preprocessing
 import torch
+from datasets import Dataset
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+
+#====================================================================================================================
+# Data Preprocessing Module
+#====================================================================================================================
 
 # Load and prepare data
 df = pd.read_csv("data/twitter.csv", nrows=500, header=None)
@@ -35,6 +48,10 @@ train_ds = train_ds.map(tokenize, batched=True)
 test_ds = test_ds.map(tokenize, batched=True)
 train_ds.set_format("torch", columns=["input_ids", "attention_mask", "label"])
 test_ds.set_format("torch", columns=["input_ids", "attention_mask", "label"])
+
+#====================================================================================================================
+# BERT Module
+#====================================================================================================================
 
 # Load pretrained BERT
 model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=len(class_names))
@@ -71,13 +88,16 @@ trainer = Trainer(
 # Train
 trainer.train()
 
+#====================================================================================================================
+# Evaluation
+#====================================================================================================================
+
 # Evaluate
 preds = trainer.predict(test_ds)
 y_true = test_df['label'].values
 y_pred = np.argmax(preds.predictions, axis=1)
 print("\nBERT Fine-Tuned Evaluation:")
 print(classification_report(y_true, y_pred, target_names=class_names))
-
 
 
 # %%
