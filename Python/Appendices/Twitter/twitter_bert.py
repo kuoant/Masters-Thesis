@@ -7,7 +7,7 @@
 import pandas as pd
 import numpy as np
 
-# Transformers & BERT
+# BERT
 from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
 
 # Machine Learning & Preprocessing

@@ -1,8 +1,16 @@
+#====================================================================================================================
+# Imports and Constants
+#====================================================================================================================
 #%%
+
+# Core Libraries
 import pandas as pd
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
+
+# Machine Learning & Preprocessing
+import xgboost as xgb
+import tensorflow as tf
 from tensorflow.keras import layers, Model
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
@@ -10,7 +18,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 from sklearn.decomposition import PCA
 from sklearn.feature_extraction.text import CountVectorizer
-import xgboost as xgb
 
 # Constants
 RANDOM_SEED = 42
@@ -20,6 +27,10 @@ OUTPUT_SEQUENCE_LENGTH = 20
 EMBED_DIM = 32
 NUM_HEADS = 2
 NUM_TRANSFORMER_BLOCKS = 2
+
+#====================================================================================================================
+# Data Preprocessing Module
+#====================================================================================================================
 
 class TwitterDataPreprocessor:
     @staticmethod
@@ -62,6 +73,11 @@ class TwitterDataPreprocessor:
         y_test = tf.convert_to_tensor(test_data['sentiment_label'].values)
         
         return X_train, X_test, y_train, y_test
+
+
+#====================================================================================================================
+# Transformer Block
+#====================================================================================================================
 
 class TransformerBlock(layers.Layer):
     """Transformer block implementation"""
@@ -137,6 +153,11 @@ class TwitterTransformerModel:
         
         plt.show()
 
+
+#====================================================================================================================
+# XGBoost Module
+#====================================================================================================================
+
 class BaselineXGBoost:
     @staticmethod
     def prepare_data(df):
@@ -162,6 +183,10 @@ class BaselineXGBoost:
         y_test = test_data['sentiment_label'].values
         
         return X_train_text, X_test_text, y_train, y_test
+    
+#====================================================================================================================
+# Main Execution
+#====================================================================================================================
 
 def main():
     # 1. Load and preprocess data

@@ -1,18 +1,27 @@
-# %%
+#====================================================================================================================
+# Imports and Constants
+#====================================================================================================================
+#%%
 
+# Core Libraries
 import pandas as pd
 import numpy as np
+
+# BERT & LoRA
 from transformers import BertTokenizer, BertForSequenceClassification
 from transformers import TrainingArguments, Trainer
+from peft import LoraConfig, get_peft_model
+
+# Machine Learning & Preprocessing
+import torch
+import torch.nn.functional as F
+from datasets import Dataset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
 from sklearn.preprocessing import LabelEncoder, label_binarize
-from peft import LoraConfig, get_peft_model
-from datasets import Dataset
-import torch
-import torch.nn.functional as F
-import warnings
 
+# Handle Warnings
+import warnings
 warnings.filterwarnings("ignore")
 
 # Constants
@@ -22,6 +31,16 @@ MAX_LENGTH = 64
 BATCH_SIZE = 16
 LEARNING_RATE = 3e-4
 NUM_EPOCHS = 5
+
+#====================================================================================================================
+# Data Preprocessing Module
+#====================================================================================================================
+
+def prepare_dataset(df, tokenizer_func):
+    dataset = Dataset.from_pandas(df[['text', 'sentiment_label']])
+    dataset = dataset.map(tokenizer_func, batched=True)
+    dataset = dataset.with_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
+    return dataset
 
 class BERTDataPreprocessor:
     @staticmethod
@@ -39,6 +58,10 @@ class BERTDataPreprocessor:
         print(df['sentiment'].value_counts())
         
         return df, le.classes_
+
+#====================================================================================================================
+# BERT Module
+#====================================================================================================================
 
 class BERTModelWithLoRA:
     def __init__(self, model_name='bert-base-uncased', num_labels=3):
@@ -108,11 +131,9 @@ class BERTModelWithLoRA:
         predictions = np.argmax(logits, axis=-1)
         return {'accuracy': accuracy_score(labels, predictions)}
 
-def prepare_dataset(df, tokenizer_func):
-    dataset = Dataset.from_pandas(df[['text', 'sentiment_label']])
-    dataset = dataset.map(tokenizer_func, batched=True)
-    dataset = dataset.with_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
-    return dataset
+#====================================================================================================================
+# Evaluation Module
+#====================================================================================================================
 
 def evaluate_and_report(trainer, test_dataset, class_names):
     print("\nEvaluating on test set...")
@@ -140,6 +161,10 @@ def evaluate_and_report(trainer, test_dataset, class_names):
         print(f"\nCould not calculate AUC: {str(e)}")
         if "Only one class present" in str(e):
             print("Warning: AUC requires at least two classes in test set")
+
+#====================================================================================================================
+# Main Execution
+#====================================================================================================================
 
 def main():
     # 1. Load data
@@ -170,3 +195,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# %%
