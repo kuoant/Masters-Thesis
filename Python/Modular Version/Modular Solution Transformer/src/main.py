@@ -6,7 +6,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Replace with your path to src
 os.chdir("/Users/fabiankuonen/Desktop/Masters Thesis/Python/Modular Version/Modular Solution GNN/src")
 
-
 from src.data_preprocessing import TabularDataPreprocessor
 from src.models.transformer import TabTransformerModel
 from src.models.trainer import ModelTrainer
