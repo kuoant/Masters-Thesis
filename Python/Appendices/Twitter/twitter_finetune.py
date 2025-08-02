@@ -98,7 +98,7 @@ class BERTModelWithLoRA:
 
     def train(self, train_dataset, val_dataset):
         training_args = TrainingArguments(
-            output_dir='./saved_model',
+            output_dir='./saved_model_lora',
             eval_strategy='epoch',
             learning_rate=LEARNING_RATE,
             per_device_train_batch_size=BATCH_SIZE,
