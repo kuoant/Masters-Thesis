@@ -504,7 +504,7 @@ if __name__ == "__main__":
         start=0.5, rot=-0.5, 
         dark=0.7, light=0.3, 
         n_colors=2, 
-        reverse=True
+        reverse=False
     )
     label_to_color = {0: cubehelix_colors[0], 1: cubehelix_colors[1]}
     point_colors = [label_to_color[label] for label in labels_np]
