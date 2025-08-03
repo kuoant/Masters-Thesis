@@ -355,7 +355,6 @@ class ModelEvaluator:
             cmap=cmap,
             xticklabels=['Class 0', 'Class 1'],
             yticklabels=['Class 0', 'Class 1']
-            # cbar=True by default
         )
         plt.title(title)
         plt.xlabel("Predicted")
