@@ -14,6 +14,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
 import plotly.express as px
 import plotly.io as pio
+from matplotlib.colors import rgb2hex
+from matplotlib.patches import Patch
 
 # Network Analysis & Graph Conversion
 import networkx as nx
@@ -160,15 +162,24 @@ class GraphBuilder:
         pos_non_lcc = {n: (random.uniform(-1, 1), random.uniform(-1, 1)) for n in non_lcc_sample}
         pos_full = {**pos_lcc, **pos_non_lcc}
         
+        # Generate cubehelix palette with reversed dark-to-light tones
+        palette = sns.cubehelix_palette(
+            start=0.5, rot=-0.5, 
+            dark=0.7, light=0.3, 
+            n_colors=2, 
+            reverse=True
+        )
+        
+        # Assign colors
+        node_colors = [palette[0] if n in lcc_sample else palette[1] for n in subgraph.nodes]
+        
         # Plot
-        node_colors = ['skyblue' if n in lcc_sample else 'lightcoral' for n in subgraph.nodes]
         plt.figure(figsize=(10, 8))
         nx.draw(
             subgraph, pos=pos_full,
             with_labels=False, node_size=400,
             node_color=node_colors, edge_color='gray', width=1.0
         )
-        plt.title("Graph with Kamada-Kawai Layout (LCC Centered, Red Nodes Spread)")
         plt.show()
 
 #====================================================================================================================
@@ -334,14 +345,24 @@ class ModelEvaluator:
         
     @staticmethod
     def plot_confusion_matrix(cm, title):
+        cmap = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.85, as_cmap=True)
+
         plt.figure(figsize=(6, 5))
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                   xticklabels=['Class 0', 'Class 1'], 
-                   yticklabels=['Class 0', 'Class 1'])
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt='d',
+            cmap=cmap,
+            xticklabels=['Class 0', 'Class 1'],
+            yticklabels=['Class 0', 'Class 1']
+            # cbar=True by default
+        )
         plt.title(title)
         plt.xlabel("Predicted")
         plt.ylabel("True")
+        plt.tight_layout()
         plt.show()
+
 
 #====================================================================================================================
 # MLP Model Module
@@ -479,14 +500,31 @@ if __name__ == "__main__":
 
     tsne = TSNE(n_components=2, perplexity=30, random_state=RANDOM_SEED)
     emb_2d = tsne.fit_transform(embeddings_np)
+    cubehelix_colors = sns.cubehelix_palette(
+        start=0.5, rot=-0.5, 
+        dark=0.7, light=0.3, 
+        n_colors=2, 
+        reverse=False
+    )
+    label_to_color = {0: cubehelix_colors[0], 1: cubehelix_colors[1]}
+    point_colors = [label_to_color[label] for label in labels_np]
 
     plt.figure(figsize=(8, 6))
-    sns.scatterplot(x=emb_2d[:, 0], y=emb_2d[:, 1], hue=labels_np, palette="Set1", alpha=0.7)
-    plt.title("2D t-SNE of GNN Embeddings")
+    plt.scatter(
+        emb_2d[:, 0], emb_2d[:, 1],
+        c=point_colors, alpha=0.7, edgecolor='none'
+    )
     plt.xlabel("TSNE-1")
     plt.ylabel("TSNE-2")
-    plt.legend(title="Default")
+    
+    
+    legend_elements = [
+        Patch(facecolor=cubehelix_colors[0], label='Class 0'),
+        Patch(facecolor=cubehelix_colors[1], label='Class 1')
+    ]
+    plt.legend(handles=legend_elements, title="Default", loc='best')
     plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
     # 8. Check Importance of Embeddings
@@ -499,12 +537,16 @@ if __name__ == "__main__":
     importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
     top_feats = importance_df.sort_values(by='Importance', ascending=False).head(20)
 
-    # Custom red-to-blue colormap
-    custom_palette = sns.color_palette("RdBu_r", n_colors=20)  # reversed RdBu for better visual contrast
+    # Cubehelix color palette (reversed: light to dark)
+    cubehelix_palette = sns.cubehelix_palette(
+        start=0.5, rot=-0.5, 
+        dark=0.3, light=0.8, 
+        n_colors=20,
+        reverse=True
+    )
 
     plt.figure(figsize=(10, 6))
-    sns.barplot(data=top_feats, x='Importance', y='Feature', palette=custom_palette)
-    plt.title("Top 20 Feature Importances (XGBoost with GNN Embeddings)")
+    sns.barplot(data=top_feats, x='Importance', y='Feature', palette=cubehelix_palette)
     plt.tight_layout()
     plt.show()
 
@@ -528,26 +570,37 @@ if __name__ == "__main__":
     embeddings_3d_sampled = embeddings_3d[sampled_indices]
     label_str_sampled = [label_str[i] for i in sampled_indices]
 
-    # Plot PCA in browser
+    # Use the same cubehelix colors
+    cubehelix_colors = sns.cubehelix_palette(
+        start=0.5, rot=-0.5,
+        dark=0.7, light=0.3,
+        n_colors=2, reverse=True
+    )
+
+    # Convert RGB to hex using matplotlib
+    default_hex = rgb2hex(cubehelix_colors[0])
+    nondefault_hex = rgb2hex(cubehelix_colors[1])
+
+    # Plotly color map
     color_map = {
-        'Default': 'rgba(80, 130, 255, 0.65)',     # Blue (Default)
-        'Non-default': 'rgba(255, 100, 100, 0.7)'  # Red (Non-default)
+        'Default': default_hex,
+        'Non-default': nondefault_hex
     }
 
+    # Plot
     fig = px.scatter_3d(
         x=embeddings_3d_sampled[:, 0],
         y=embeddings_3d_sampled[:, 1],
         z=embeddings_3d_sampled[:, 2],
         color=label_str_sampled,
         labels={'x': 'PC1', 'y': 'PC2', 'z': 'PC3', 'color': 'Label'},
-        title='3D PCA of GNN Embeddings (Sampled & Pastel Colors)',
+        title='3D PCA of GNN Embeddings',
         opacity=1.0,
         color_discrete_map=color_map
     )
 
     pio.renderers.default = 'browser'
     fig.show()
-
 
 
 
