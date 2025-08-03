@@ -11,8 +11,10 @@ import numpy as np
 # Visualization
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 import plotly.express as px
+import plotly.io as pio
 
 # PyTorch & PyTorch Geometric
 import torch
@@ -140,13 +142,18 @@ with torch.no_grad():
     print(f"R² score: {r2_score(y_true, y_pred):.4f}")
     print(f"RMSE: {np.sqrt(mean_squared_error(y_true, y_pred)):.2f}")
 
+    palette = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.8, n_colors=2, reverse=True)
+    point_color = palette[0]
+    line_color = palette[1]
+
     plt.figure(figsize=(10, 6))
-    plt.scatter(y_true, y_pred, alpha=0.5, edgecolor='k')
+    plt.scatter(y_true, y_pred, alpha=0.5, edgecolor='k', color=point_color)
     plt.xlabel('Actual Median House Value')
     plt.ylabel('Predicted Median House Value')
     plt.title('GraphSAGE Node Regression')
-    plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--')
+    plt.plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], color=line_color)
     plt.grid(True)
+    plt.tight_layout()
     plt.show()
 
 #====================================================================================================================
@@ -207,48 +214,47 @@ for k in K_range:
     kmeans.fit(embeddings_np)
     inertia.append(kmeans.inertia_)
 
+cubehelix_colors = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.8, n_colors=2, reverse=True)
+
 plt.figure(figsize=(8, 5))
-plt.plot(K_range, inertia, 'bo-')
+plt.plot(K_range, inertia, marker='o', color=cubehelix_colors[1], markerfacecolor=cubehelix_colors[0], markeredgecolor=cubehelix_colors[1])
 plt.xlabel('Number of clusters (k)')
 plt.ylabel('Inertia (Sum of squared distances)')
 plt.title('Elbow Plot for KMeans Clustering on Embeddings')
 plt.xticks(K_range)
 plt.grid(True)
+plt.tight_layout()
 plt.show()
 
 # 2. 3D PCA 
 embeddings_np = embeddings.numpy()
 targets = graph_data.y.numpy()
 
-# PCA to reduce embeddings to 3 dimensions
+# PCA to reduce embeddings to 3D
 pca = PCA(n_components=3)
 embeddings_3d = pca.fit_transform(embeddings_np)
 
-# 3D scatter plot
+cubehelix_cmap = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.8, as_cmap=True)
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
-
 sc = ax.scatter(
     embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2],
-    c=targets, cmap='viridis', alpha=0.7
+    c=targets, cmap=cubehelix_cmap, alpha=0.7
 )
-
 ax.set_title('3D PCA of GraphSAGE Embeddings')
 ax.set_xlabel('PC1')
 ax.set_ylabel('PC2')
 ax.set_zlabel('PC3')
-
 fig.colorbar(sc, ax=ax, label='Median House Value')
 plt.show()
 
-embeddings_np = embeddings.numpy()
-targets = graph_data.y.numpy()
-
-# Reduce to 3D using PCA
+# Interactive 3D-PCA Plot
 pca = PCA(n_components=3)
 embeddings_3d = pca.fit_transform(embeddings_np)
 
-# Create interactive 3D scatter plot
+cubehelix_colors = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.8, n_colors=256, as_cmap=False)
+cubehelix_colors_hex = [mcolors.rgb2hex(c) for c in cubehelix_colors]
+
 fig = px.scatter_3d(
     x=embeddings_3d[:, 0],
     y=embeddings_3d[:, 1],
@@ -257,9 +263,9 @@ fig = px.scatter_3d(
     labels={'x': 'PC1', 'y': 'PC2', 'z': 'PC3'},
     title='Interactive 3D PCA of GraphSAGE Embeddings',
     opacity=0.7,
-    color_continuous_scale='Viridis'
+    color_continuous_scale=cubehelix_colors_hex
 )
-import plotly.io as pio
+
 pio.renderers.default = 'browser'
 fig.show()
 
@@ -268,12 +274,20 @@ coefficients = linreg_combined.coef_
 n_features = graph_data.x.shape[1]
 embedding_coefs = coefficients[n_features:] 
 
+n_bars = len(embedding_coefs)
+palette = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.8, n_colors=n_bars)
+
 plt.figure(figsize=(8, 4))
-sns.barplot(x=np.arange(len(embedding_coefs)), y=embedding_coefs)
+sns.barplot(
+    x=np.arange(n_bars),
+    y=embedding_coefs,
+    palette=palette
+)
 plt.xlabel("Embedding Dimension")
 plt.ylabel("Coefficient")
 plt.title("Linear Model Coefficients for GNN Embeddings")
 plt.grid(True)
+plt.tight_layout()
 plt.show()
 
 # 4. Permutation Importance of Embeddings
@@ -287,12 +301,16 @@ for i in range(embeddings.shape[1]):
     rmse = np.sqrt(mean_squared_error(y_test, y_temp_pred))
     importances.append(rmse - baseline_rmse)
 
+n_bars = len(importances)
+palette = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.8, n_colors=n_bars)
+
 plt.figure(figsize=(8, 4))
-sns.barplot(x=np.arange(len(importances)), y=importances)
+sns.barplot(x=np.arange(n_bars), y=importances, palette=palette)
 plt.xlabel("Embedding Dimension")
 plt.ylabel("RMSE Increase")
 plt.title("Permutation Importance of Embedding Dimensions")
 plt.grid(True)
+plt.tight_layout()
 plt.show()
 
 # 5. Canonical Correlation
@@ -392,12 +410,15 @@ x_vals_const = sm.add_constant(x_vals)  # add intercept
 y_vals = model_pca.predict(x_vals_const)
 
 # Plot
+color_class_0 = "#5D3A9B"  # dark purple
+color_class_1 = "#3FBFC2"  # bluish cyan
+
+# Plot
 plt.figure(figsize=(10, 6))
-plt.scatter(pc1, y_true, alpha=0.6, edgecolor='k', label='Data')
-plt.plot(x_vals, y_vals, color='red', linewidth=2, label='Regression Line')
+plt.scatter(pc1, y_true, alpha=0.6, edgecolor='k', color=color_class_0, label='Data')
+plt.plot(x_vals, y_vals, color=color_class_1, linewidth=2, label='Regression Line')
 plt.xlabel('PC1 from Embeddings')
 plt.ylabel('Median House Value')
-plt.title('PC1 vs Median House Value')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
@@ -434,12 +455,11 @@ fig, ax = plt.subplots(figsize=(12, 10))
 gdf_edges.plot(ax=ax, linewidth=0.3, color='gray', alpha=0.5)
 
 # Plot nodes
-gdf_nodes.plot(ax=ax, markersize=10, color='#40E0D0', alpha=0.8)
+gdf_nodes.plot(ax=ax, markersize=15, color='#3FBFC2', alpha=0.8)
 
 # Add basemap
 ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
 
-ax.set_title("Housing Graph on California Map", fontsize=14)
 ax.set_axis_off()
 plt.show()
 
