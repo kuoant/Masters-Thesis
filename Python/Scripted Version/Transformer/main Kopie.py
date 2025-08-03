@@ -4,8 +4,10 @@
 #%%
 
 # Core Libraries
+import re
 import numpy as np
 import pandas as pd
+import traceback
 
 # TensorFlow / Keras
 import tensorflow as tf
@@ -43,7 +45,7 @@ import xgboost as xgb
 RANDOM_SEED = 42
 TEST_SIZE = 0.2
 MAX_TOKENS = 1000
-OUTPUT_SEQUENCE_LENGTH = 20
+OUTPUT_SEQUENCE_LENGTH = 50
 EMBED_DIM = 32
 NUM_HEADS = 2
 NUM_TRANSFORMER_BLOCKS = 2
@@ -1004,69 +1006,28 @@ for i in range(min(3, len(X_test['categorical']))):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#%% Visualization of Text Attention
-
-import traceback
-
+# 10. Visualization of Text Attention
 def get_original_text(sample_idx):
-    """Retrieve the original text for a given sample index"""
     df = TabularDataPreprocessor.load_and_prepare_data("data/df_small_sampled.csv")
-    train_data, test_data = train_test_split(
-        df, test_size=TEST_SIZE, random_state=RANDOM_SEED
-    )
+    _, test_data = train_test_split(df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
     return test_data['JobDescription'].iloc[sample_idx]
 
 def get_text_vectorizer(model, train_text=None):
-    """Get or create consistent text vectorizer with standardized preprocessing"""
     try:
         vectorizer = model.get_layer('text_vectorizer')
         print("Using model's built-in text vectorizer")
         return vectorizer
     except ValueError:
         print("Creating new vectorizer with consistent preprocessing")
-        
+
         def custom_standardize(text):
             text = tf.strings.lower(text)
-            return tf.strings.regex_replace(text, r'(\d)%', r'\1 %')
-        
+            text = tf.strings.regex_replace(text, r"(\d+)%", r"\1 %")         # space before %
+            text = tf.strings.regex_replace(text, r"[$€£]", "")              # remove currency
+            text = tf.strings.regex_replace(text, r"[^\w\s\-%]", " ")        # keep words, digits, %, hyphen
+            text = tf.strings.regex_replace(text, r"\s+", " ")               # normalize whitespace
+            return text
+
         vectorizer = layers.TextVectorization(
             max_tokens=MAX_TOKENS,
             output_mode='int',
@@ -1074,36 +1035,29 @@ def get_text_vectorizer(model, train_text=None):
             standardize=custom_standardize,
             name='text_vectorizer'
         )
-        
+
         if train_text is not None:
             vectorizer.adapt(train_text.fillna('').astype(str))
         return vectorizer
 
 def verify_tokenization(original_text, vectorizer):
-    """Verify and return consistent tokens with positions"""
-    # Process through vectorizer
     token_ids = vectorizer([original_text]).numpy()[0]
     vocab = vectorizer.get_vocabulary()
     tokens = [vocab[token_id] for token_id in token_ids if token_id != 0]
-    
-    # Create clean labels with positions
     labels = [f"{token} ({i+1})" for i, token in enumerate(tokens)]
-    
-    # Verification output
+
     print("\nTokenization Verification:")
     print(f"Original: {' '.join(original_text.split()[:5])}...")
     print(f"Processed: {' '.join(tokens[:5])}...")
-    
-    # Check for common issues
+
     if len(tokens) == 0:
         print("Warning: No tokens generated!")
     if any("%" in t for t in original_text.split()) and not any("%" in t for t in tokens):
         print("Warning: Percentage signs not preserved properly")
-    
+
     return tokens, labels
 
 def create_text_attention_model(model):
-    """Create model that outputs text attention weights"""
     text_transformer = [l for l in model.layers if isinstance(l, TransformerBlock)][-1]
     _, attn_weights = text_transformer.att(
         model.get_layer('embedding_7').output,
@@ -1113,10 +1067,7 @@ def create_text_attention_model(model):
     return Model(inputs=model.inputs, outputs=attn_weights)
 
 def plot_text_attention(weights, tokens, sample_idx, head_idx):
-    """Plot attention weights for text tokens"""
     plt.figure(figsize=(20, 18))
-    
-    # Create dataframe for better labeling
     attn_df = pd.DataFrame(
         (weights - np.mean(weights)) / np.std(weights),
         index=tokens,
@@ -1124,7 +1075,7 @@ def plot_text_attention(weights, tokens, sample_idx, head_idx):
     )
 
     cubehelix_cmap = sns.cubehelix_palette(
-        start=0.5, rot=-0.75, gamma=1.0, 
+        start=0.5, rot=-0.75, gamma=1.0,
         dark=0.2, light=0.9, as_cmap=True
     )
 
@@ -1136,15 +1087,13 @@ def plot_text_attention(weights, tokens, sample_idx, head_idx):
         cbar_kws={'label': 'Normalized Attention (σ)'},
         linewidths=0.5
     )
-    
-    # Highlight important words
+
     important_indices = set()
     for i in range(len(tokens)):
         for j in range(len(tokens)):
-            if abs(attn_df.iloc[i,j]) > 1.5 and i != j:
+            if abs(attn_df.iloc[i, j]) > 1.5 and i != j:
                 important_indices.update([i, j])
-    
-    # Bold important words
+
     for label in ax.get_yticklabels():
         if label.get_position()[1] in important_indices:
             label.set_weight('bold')
@@ -1152,7 +1101,7 @@ def plot_text_attention(weights, tokens, sample_idx, head_idx):
             label.set_fontsize(10)
         else:
             label.set_fontsize(8)
-    
+
     for label in ax.get_xticklabels():
         if label.get_position()[0] in important_indices:
             label.set_weight('bold')
@@ -1160,7 +1109,7 @@ def plot_text_attention(weights, tokens, sample_idx, head_idx):
             label.set_fontsize(10)
         else:
             label.set_fontsize(8)
-    
+
     plt.title(
         f"Text Attention - Head {head_idx+1}\n"
         f"Sample {sample_idx} | Words: {len(tokens)}\n"
@@ -1171,19 +1120,12 @@ def plot_text_attention(weights, tokens, sample_idx, head_idx):
     plt.ylabel("Query Tokens (position)", fontsize=12)
     plt.xticks(rotation=90)
     plt.yticks(rotation=0)
-    
     plt.tight_layout()
     plt.show()
 
 def prepare_attention_input(model, sample_idx, text_vectorizer):
-    """Prepare consistent input for attention visualization with correct input names"""
-    # Get original text
     text = get_original_text(sample_idx)
-    
-    # Get verified tokens
     tokens, labels = verify_tokenization(text, text_vectorizer)
-    
-    # Prepare model input with correct names
     token_ids = text_vectorizer([text]).numpy()[0]
     return {
         'inputs': {
@@ -1195,38 +1137,85 @@ def prepare_attention_input(model, sample_idx, text_vectorizer):
         'labels': labels
     }
 
+def verify_token_alignment(original_text, vectorized_tokens, text_vectorizer):
+    vocab = text_vectorizer.get_vocabulary()
+    decoded_tokens = [vocab[token_id] for token_id in vectorized_tokens if token_id != 0]
+
+    # Use same custom standardizer from vectorizer
+    def custom_standardize_for_comparison(text):
+        text = text.lower()
+        text = re.sub(r"(\d+)%", r"\1 %", text)        # space before %
+        text = re.sub(r"[$€£]", "", text)              # remove currency
+        text = re.sub(r"[^\w\s\-%]", " ", text)        # keep alphanum, %, hyphen
+        text = re.sub(r"\s+", " ", text)               # normalize whitespace
+        return text.strip()
+
+    # Apply the same preprocessing
+    preprocessed_original = custom_standardize_for_comparison(original_text)
+    original_tokens = preprocessed_original.split()
+
+    print("\n=== Token Alignment Verification ===")
+    print(f"Original: {original_tokens[:10]}... (Total: {len(original_tokens)})")
+    print(f"Vectorized: {decoded_tokens[:10]}... (Total: {len(decoded_tokens)})")
+
+    mismatch_found = False
+    for i, (orig, vec) in enumerate(zip(original_tokens, decoded_tokens)):
+        if orig != vec:
+            print(f"\n🔍 First mismatch at position {i}:")
+            print(f"Original word: '{orig}'")
+            print(f"Processed token: '{vec}'")
+            mismatch_found = True
+            break
+
+    if not mismatch_found and len(original_tokens) == len(decoded_tokens):
+        print("✅ Perfect alignment!")
+    elif not mismatch_found:
+        print("⚠️ Lengths differ but all tokens match up to the shorter length")
+    elif len(original_tokens) != len(decoded_tokens):
+        print(f"\n⚠️ Length mismatch! Original: {len(original_tokens)} vs Vectorized: {len(decoded_tokens)}")
+
 def visualize_text_attention(model, sample_idx=0):
-    """Main visualization function with robust error handling"""
     try:
-        # Setup
         df = TabularDataPreprocessor.load_and_prepare_data("data/df_small_sampled.csv")
         train_data, _ = train_test_split(df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
-        
-        # 1. Get consistent text processing
+        original_text = get_original_text(sample_idx)
+
+        print(f"\n=== Original Text (Sample {sample_idx}) ===")
+        print("-" * 80)
+        print(original_text)
+        print("-" * 80)
+
         text_vectorizer = get_text_vectorizer(model, train_data['JobDescription'])
-        
-        # 2. Prepare verified input
-        inputs = prepare_attention_input(model, sample_idx, text_vectorizer)
-        
-        # 3. Get attention weights
+        processed_tokens = text_vectorizer([original_text]).numpy()[0]
+        verify_token_alignment(original_text, processed_tokens, text_vectorizer)
+
+        vocab = text_vectorizer.get_vocabulary()
+        decoded_tokens = [vocab[token_id] for token_id in processed_tokens if token_id != 0]
+        clean_labels = [f"{token} ({i+1})" for i, token in enumerate(decoded_tokens)]
+
         attention_model = create_text_attention_model(model)
-        attn_weights = attention_model.predict(inputs['inputs'], verbose=0)[0]
-        
-        # 4. Visualize each head
+        sample_input = {
+            'categorical_inputs': tf.expand_dims(X_test['categorical'][sample_idx], 0),
+            'numerical_inputs': tf.expand_dims(X_test['numerical'][sample_idx], 0),
+            'text_inputs': tf.expand_dims(processed_tokens, 0)
+        }
+        attn_weights = attention_model.predict(sample_input, verbose=0)[0]
+
         for head_idx in range(attn_weights.shape[0]):
             plot_text_attention(
-                attn_weights[head_idx][:len(inputs['tokens']), :len(inputs['tokens'])],
-                inputs['labels'],
+                attn_weights[head_idx][:len(decoded_tokens), :len(decoded_tokens)],
+                clean_labels,
                 sample_idx,
                 head_idx
             )
-            
+
     except Exception as e:
         print(f"\nError visualizing sample {sample_idx}:")
         traceback.print_exc()
 
-# Visualization loop
+# Run for first few samples
 for i in range(min(3, len(X_test['text']))):
     print(f"\n=== Analyzing Sample {i} ===")
     visualize_text_attention(trained_model, i)
+
 # %%
