@@ -855,7 +855,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
     
-
+    #%%
     # 9. Visualize Categorical Attention 
     def visualize_attention(model, sample_idx=0):
         """Visualize attention weights from trained model"""
@@ -930,13 +930,21 @@ if __name__ == "__main__":
             # Center around mean and scale by standard deviation
             scaled_weights = (head_weights - np.mean(head_weights)) / np.std(head_weights)
             
+            cubehelix_cmap = sns.cubehelix_palette(
+                start=0.5, rot=-0.75, gamma=1.0, 
+                dark=0.2, light=0.9, as_cmap=True
+            )
+
             sns.heatmap(
                 scaled_weights,
                 annot=True, fmt=".1f",
-                cmap="coolwarm",  # Better for centered values
-                center=0,  # Center color map at zero
+                cmap=cubehelix_cmap,
+                center=0,  # center around 0
                 xticklabels=cat_features,
-                yticklabels=cat_features
+                yticklabels=cat_features,
+                square=True,
+                linewidths=0.5,
+                cbar_kws={"shrink": 0.8}
             )
             plt.title(f"Scaled Attention (σ) - Head {head_idx+1}\nSample {sample_idx}")
             plt.xticks(rotation=45)
@@ -1032,11 +1040,15 @@ if __name__ == "__main__":
                     index=tokens,
                     columns=tokens
                 )
-                
-                # Plot with seaborn
+
+                cubehelix_cmap = sns.cubehelix_palette(
+                    start=0.5, rot=-0.75, gamma=1.0, 
+                    dark=0.2, light=0.9, as_cmap=True
+                )
+
                 ax = sns.heatmap(
                     attn_df,
-                    cmap='coolwarm',
+                    cmap=cubehelix_cmap,
                     center=0,
                     annot=False,
                     cbar_kws={'label': 'Normalized Attention (σ)'}
