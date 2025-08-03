@@ -54,7 +54,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Parameter for controlling connections
-FRAC = 1
+FRAC = 1.5
 
 # Target mapping to get comparable results as with transformers
 FRAC = 0.01 * (FRAC)**(5.3)
@@ -594,7 +594,7 @@ if __name__ == "__main__":
         z=embeddings_3d_sampled[:, 2],
         color=label_str_sampled,
         labels={'x': 'PC1', 'y': 'PC2', 'z': 'PC3', 'color': 'Label'},
-        title='3D PCA of GNN Embeddings (Cubehelix Colors)',
+        title='3D PCA of GNN Embeddings',
         opacity=1.0,
         color_discrete_map=color_map
     )
