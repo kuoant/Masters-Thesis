@@ -855,107 +855,183 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
     
+
+
+
+#====================================================================================================================
+# Plot Attention Mechanism
+#====================================================================================================================
+#%%
+
+# 9. Visualize Categorical Attention 
+def create_attention_model(original_model):
+    """Create a model that outputs attention weights from the last transformer block"""
+    class AttentionModel(Model):
+        def __init__(self, original_model):
+            super().__init__()
+            self.original_model = original_model
+            
+            # Store all categorical embeddings and transformer blocks
+            self.cat_embeddings = [
+                layer for layer in original_model.layers 
+                if isinstance(layer, layers.Embedding) and 'embedding' in layer.name.lower()
+            ]
+            self.transformer_blocks = [
+                layer for layer in original_model.layers 
+                if isinstance(layer, TransformerBlock)
+            ]
+            
+        def call(self, inputs):
+            x_cat, x_num, x_text = inputs
+            
+            # Process categorical features
+            embedded_cats = [emb_layer(x_cat[:, i:i+1]) for i, emb_layer in enumerate(self.cat_embeddings)]
+            x_cat = layers.Concatenate(axis=1)(embedded_cats)
+            
+            # Process through all but last transformer block
+            for block in self.transformer_blocks[:-1]:
+                x_cat = block(x_cat)
+            
+            # Get attention weights from last block
+            _, attn_weights = self.transformer_blocks[-1].att(x_cat, x_cat, return_attention_scores=True)
+            return attn_weights
+    
+    return AttentionModel(original_model)
+
+def plot_attention_weights(attn_weights, sample_idx, head_idx, cat_features):
+    """Plot attention weights for a specific head"""
+    plt.figure(figsize=(10, 8))
+    head_weights = attn_weights[0, head_idx]
+    
+    # Center around mean and scale by standard deviation
+    scaled_weights = (head_weights - np.mean(head_weights)) / np.std(head_weights)
+    
+    cubehelix_cmap = sns.cubehelix_palette(
+        start=0.5, rot=-0.75, gamma=1.0, 
+        dark=0.2, light=0.9, as_cmap=True
+    )
+
+    sns.heatmap(
+        scaled_weights,
+        annot=True, fmt=".1f",
+        cmap=cubehelix_cmap,
+        center=0,
+        xticklabels=cat_features,
+        yticklabels=cat_features,
+        square=True,
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.8}
+    )
+    plt.title(f"Scaled Attention (σ) - Head {head_idx+1}\nSample {sample_idx}")
+    plt.xticks(rotation=45)
+    plt.show()
+
+def visualize_attention(model, sample_idx=0):
+    """Visualize attention weights for a given sample with decoded categorical values"""
+    # Categorical feature names and their possible values
+    cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 
+                   'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
+    
+    # Define mappings from encoded values to actual labels
+    category_mappings = {
+        'Education': {
+            0: 'High School', 
+            1: 'Bachelor', 
+            2: 'Master', 
+            3: 'PhD'
+        },
+        'EmploymentType': {
+            0: 'Unemployed', 
+            1: 'Part-time', 
+            2: 'Full-time', 
+            3: 'Self-employed'
+        },
+        'MaritalStatus': {
+            0: 'Single', 
+            1: 'Married', 
+            2: 'Divorced'
+        },
+        'HasMortgage': {
+            0: 'No', 
+            1: 'Yes'
+        },
+        'HasDependents': {
+            0: 'No', 
+            1: 'Yes'
+        },
+        'LoanPurpose': {
+            0: 'Personal', 
+            1: 'Education', 
+            2: 'Medical', 
+            3: 'Business'
+        },
+        'HasCoSigner': {
+            0: 'No', 
+            1: 'Yes'
+        }
+    }
+    
+    # Convert tensor to numpy array before accessing values
+    categorical_values = X_test['categorical'][sample_idx].numpy()
+    
+    # Print the categorical values for this sample with decoded labels
+    print("\nCategorical feature values for sample", sample_idx)
+    for feat, val in zip(cat_features, categorical_values):
+        decoded_value = category_mappings[feat].get(int(val), f"Unknown ({val})")
+        print(f"{feat}: {decoded_value}")
+    
+    # Rest of the visualization code remains the same...
+    attention_model = create_attention_model(model)
+    
+    sample = (
+        tf.cast(tf.expand_dims(X_test['categorical'][sample_idx], 0), tf.int32),
+        tf.cast(tf.expand_dims(X_test['numerical'][sample_idx], 0), tf.float32),
+        tf.cast(tf.expand_dims(X_test['text'][sample_idx], 0), tf.int32)
+    )
+    
+    attn_weights = attention_model.predict(sample, verbose=0)
+    
+    num_heads = attn_weights.shape[1]
+    for head_idx in range(num_heads):
+        plot_attention_weights(attn_weights, sample_idx, head_idx, cat_features)
+
+# Visualize for first 3 samples
+for i in range(min(3, len(X_test['categorical']))):
+    print(f"\nVisualizing attention for sample {i}")
+    visualize_attention(trained_model, i)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     #%%
-    # 9. Visualize Categorical Attention 
-    def visualize_attention(model, sample_idx=0):
-        """Visualize attention weights from trained model"""
-        # Find all transformer blocks in the model
-        transformer_blocks = [i for i, layer in enumerate(model.layers) 
-                            if isinstance(layer, TransformerBlock)]
-        
-        if not transformer_blocks:
-            raise ValueError("No TransformerBlock found in the model")
-        
-        # Get the last transformer block
-        last_transformer_idx = transformer_blocks[-1]
-        transformer_block = model.layers[last_transformer_idx]
-        
-        # Create a model that outputs attention weights
-        class AttentionModel(Model):
-            def __init__(self, original_model):
-                super().__init__()
-                self.original_model = original_model
-                
-                # Find and store all the embedding layers from the original model
-                self.cat_embeddings = []
-                for layer in original_model.layers:
-                    if isinstance(layer, layers.Embedding) and 'embedding' in layer.name.lower():
-                        self.cat_embeddings.append(layer)
-                
-                self.transformer_blocks = [layer for layer in original_model.layers 
-                                        if isinstance(layer, TransformerBlock)]
-                self.last_transformer = self.transformer_blocks[-1]
-                
-            def call(self, inputs):
-                x_cat, x_num, x_text = inputs
-                
-                # Process categorical features using original model's embeddings
-                embedded_cats = []
-                for i, emb_layer in enumerate(self.cat_embeddings):
-                    embedded_cats.append(emb_layer(x_cat[:, i:i+1]))
-                x_cat = layers.Concatenate(axis=1)(embedded_cats)
-                
-                # Process through transformer blocks
-                for block in self.transformer_blocks[:-1]:
-                    x_cat = block(x_cat)
-                
-                # Get attention weights from last block
-                attn_output, attn_weights = self.last_transformer.att(
-                    x_cat, x_cat, return_attention_scores=True)
-                return attn_weights
-        
-        # Create attention model
-        attention_model = AttentionModel(model)
-        
-        # Prepare input sample - ensure correct types and shapes
-        sample = (
-            tf.cast(tf.expand_dims(X_test['categorical'][sample_idx], 0), tf.int32),  # Fixed syntax
-            tf.cast(tf.expand_dims(X_test['numerical'][sample_idx], 0), tf.float32),
-            tf.cast(tf.expand_dims(X_test['text'][sample_idx], 0), tf.int32)
-        )
-        
-        # Get attention weights
-        attn_weights = attention_model.predict(sample, verbose=0)
-        
-        # Plot categorical attention for each head
-        cat_features = ['Education', 'EmploymentType', 'MaritalStatus', 
-                    'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
-        
-        num_heads = attn_weights.shape[1]
-        
-        for head_idx in range(num_heads):
-            plt.figure(figsize=(10, 8))
-            head_weights = attn_weights[0, head_idx]
-            
-            # Center around mean and scale by standard deviation
-            scaled_weights = (head_weights - np.mean(head_weights)) / np.std(head_weights)
-            
-            cubehelix_cmap = sns.cubehelix_palette(
-                start=0.5, rot=-0.75, gamma=1.0, 
-                dark=0.2, light=0.9, as_cmap=True
-            )
-
-            sns.heatmap(
-                scaled_weights,
-                annot=True, fmt=".1f",
-                cmap=cubehelix_cmap,
-                center=0,  # center around 0
-                xticklabels=cat_features,
-                yticklabels=cat_features,
-                square=True,
-                linewidths=0.5,
-                cbar_kws={"shrink": 0.8}
-            )
-            plt.title(f"Scaled Attention (σ) - Head {head_idx+1}\nSample {sample_idx}")
-            plt.xticks(rotation=45)
-            plt.show()
-
-    # Visualize for first 3 samples
-    for i in range(min(3, len(X_test['categorical']))):
-        print(f"\nVisualizing attention for sample {i}")
-        visualize_attention(trained_model, i)
-
-
     # 10. Visualize Text Attention 
     def visualize_text_attention(model, sample_idx=0):
         """Visualize attention weights with perfect text matching"""
@@ -1097,4 +1173,158 @@ if __name__ == "__main__":
         visualize_text_attention(trained_model, i)
 
 
+
+
+
+
+
+# %%
+
+# 10. Visualize Text Attention  (new version)
+def get_original_text(sample_idx):
+    """Retrieve the original text for a given sample index"""
+    df = TabularDataPreprocessor.load_and_prepare_data("data/df_small_sampled.csv")
+    train_data, test_data = train_test_split(
+        df, test_size=TEST_SIZE, random_state=RANDOM_SEED
+    )
+    return test_data['JobDescription'].iloc[sample_idx]
+
+def initialize_text_vectorizer(train_text):
+    """Initialize and adapt text vectorizer"""
+    text_vectorizer = layers.TextVectorization(
+        max_tokens=MAX_TOKENS,
+        output_mode='int',
+        output_sequence_length=OUTPUT_SEQUENCE_LENGTH,
+        name='text_vectorizer'
+    )
+    text_vectorizer.adapt(train_text.fillna('').astype(str))
+    return text_vectorizer
+
+def tokenize_text(text, vectorizer):
+    """Tokenize text and get word positions"""
+    tokens = []
+    word_positions = []
+    words = text.split()[:OUTPUT_SEQUENCE_LENGTH]
+    
+    for pos, word in enumerate(words):
+        token_id = vectorizer([word]).numpy()[0][0]
+        if token_id == 0:  # Skip padding
+            continue
+        tokens.append(f"{word}_{pos+1}")
+        word_positions.append(pos)
+    
+    return tokens, word_positions
+
+def create_text_attention_model(model):
+    """Create model that outputs text attention weights"""
+    text_transformer = [l for l in model.layers if isinstance(l, TransformerBlock)][-1]
+    _, attn_weights = text_transformer.att(
+        model.get_layer('embedding_7').output,
+        model.get_layer('embedding_7').output,
+        return_attention_scores=True
+    )
+    return Model(inputs=model.inputs, outputs=attn_weights)
+
+def plot_text_attention(weights, tokens, sample_idx, head_idx):
+    """Plot attention weights for text tokens"""
+    plt.figure(figsize=(20, 18))
+    
+    # Create dataframe for better labeling
+    attn_df = pd.DataFrame(
+        (weights - np.mean(weights)) / np.std(weights),
+        index=tokens,
+        columns=tokens
+    )
+
+    cubehelix_cmap = sns.cubehelix_palette(
+        start=0.5, rot=-0.75, gamma=1.0, 
+        dark=0.2, light=0.9, as_cmap=True
+    )
+
+    ax = sns.heatmap(
+        attn_df,
+        cmap=cubehelix_cmap,
+        center=0,
+        annot=False,
+        cbar_kws={'label': 'Normalized Attention (σ)'}
+    )
+    
+    # Highlight important words
+    important_words = set()
+    for i in range(len(tokens)):
+        for j in range(len(tokens)):
+            if abs(attn_df.iloc[i,j]) > 1.5 and i != j:
+                important_words.add(tokens[i])
+                important_words.add(tokens[j])
+    
+    # Bold important words
+    for label in ax.get_yticklabels():
+        if label.get_text() in important_words:
+            label.set_weight('bold')
+            label.set_color('black')
+    for label in ax.get_xticklabels():
+        if label.get_text() in important_words:
+            label.set_weight('bold')
+            label.set_color('black')
+    
+    plt.title(
+        f"Text Attention - Head {head_idx+1}\n"
+        f"Sample {sample_idx} | Words: {len(tokens)}\n"
+        "Bold labels show strong attention connections",
+        pad=20, fontsize=14
+    )
+    plt.xlabel("Key Tokens", fontsize=12)
+    plt.ylabel("Query Tokens", fontsize=12)
+    plt.xticks(rotation=90, fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    
+    plt.tight_layout()
+    plt.show()
+
+def visualize_text_attention(model, sample_idx=0):
+    """Main function to visualize text attention"""
+    try:
+        # 1. Get original text
+        original_text = get_original_text(sample_idx)
+        print(f"\n=== Original Text (Sample {sample_idx}) ===")
+        print("-"*80)
+        print(original_text)
+        print("-"*80)
+
+        # 2. Initialize text vectorizer
+        df = TabularDataPreprocessor.load_and_prepare_data("data/df_small_sampled.csv")
+        train_data, _ = train_test_split(df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
+        text_vectorizer = initialize_text_vectorizer(train_data['JobDescription'])
+        
+        # 3. Tokenize text
+        tokens, _ = tokenize_text(original_text, text_vectorizer)
+        
+        # 4. Create attention model
+        attention_model = create_text_attention_model(model)
+        
+        # 5. Prepare input and get attention weights
+        sample_input = {
+            'categorical_inputs': tf.expand_dims(X_test['categorical'][sample_idx], 0),
+            'numerical_inputs': tf.expand_dims(X_test['numerical'][sample_idx], 0),
+            'text_inputs': tf.expand_dims(X_test['text'][sample_idx], 0)
+        }
+        attn_weights = attention_model.predict(sample_input, verbose=0)[0]
+        
+        # 6. Visualize each attention head
+        num_heads = attn_weights.shape[0]
+        seq_len = len(tokens)
+        
+        for head_idx in range(num_heads):
+            weights = attn_weights[head_idx][:seq_len, :seq_len]
+            plot_text_attention(weights, tokens, sample_idx, head_idx)
+            
+    except Exception as e:
+        print(f"Error visualizing sample {sample_idx}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+# Visualize text attention for first 3 samples
+for i in range(min(3, len(X_test['text']))):
+    print(f"\n=== Analyzing Sample {i} ===")
+    visualize_text_attention(trained_model, i)
 # %%
