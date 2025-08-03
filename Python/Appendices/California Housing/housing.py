@@ -241,7 +241,6 @@ sc = ax.scatter(
     embeddings_3d[:, 0], embeddings_3d[:, 1], embeddings_3d[:, 2],
     c=targets, cmap=cubehelix_cmap, alpha=0.7
 )
-ax.set_title('3D PCA of GraphSAGE Embeddings')
 ax.set_xlabel('PC1')
 ax.set_ylabel('PC2')
 ax.set_zlabel('PC3')
