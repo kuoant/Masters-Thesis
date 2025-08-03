@@ -67,9 +67,11 @@ for col in analysis_num_cols:
 
 ## 3. Correlation Analysis
 print("\n Correlation Analysis")
-# Calculate correlation matrix
-cubehelix_cmap = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, as_cmap=True)
 
+# Calculate correlation matrix
+corr_matrix = df[analysis_num_cols + ['Default']].corr(method='spearman')
+
+cubehelix_cmap = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, as_cmap=True)
 plt.figure(figsize=(12, 8))
 mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
 
