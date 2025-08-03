@@ -855,6 +855,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
     
+    #%%
     # 9. Visualize Categorical Attention 
     def visualize_attention(model, sample_idx=0):
         """Visualize attention weights from trained model"""
