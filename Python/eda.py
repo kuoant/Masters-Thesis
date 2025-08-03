@@ -16,6 +16,10 @@ from scipy import stats
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import mutual_info_classif
 
+#====================================================================================================================
+# Colors
+#====================================================================================================================
+
 # Set global visualization style and color palette
 cubehelix_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8)
 sns.set_palette(cubehelix_palette)
@@ -64,15 +68,27 @@ for col in analysis_num_cols:
 ## 3. Correlation Analysis
 print("\n Correlation Analysis")
 # Calculate correlation matrix
-corr_matrix = df[analysis_num_cols + ['Default']].corr(method='spearman')
+cubehelix_cmap = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, as_cmap=True)
 
-# Plot correlation heatmap
 plt.figure(figsize=(12, 8))
 mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
-sns.heatmap(corr_matrix, mask=mask, annot=True, fmt=".4f", cmap=cubehelix_cmap, center=0, vmin=-1, vmax=1)
-plt.title("Feature Correlation Matrix (Spearman)")
+
+sns.heatmap(
+    corr_matrix,
+    mask=mask,
+    annot=True,
+    fmt=".6f",
+    cmap=cubehelix_cmap,
+    center=0,
+    vmin=-0.01,
+    vmax=0.01
+)
+
+plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
+
+
 
 # Identify high correlations
 high_corr = [(i, j) for i in corr_matrix.columns for j in corr_matrix.columns 
@@ -125,7 +141,7 @@ for col in analysis_num_cols:
     outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)]
     print(f"{col}: {len(outliers)} outliers ({len(outliers)/len(df)*100:.2f}%)")
 
-## 8. Feature Importance Analysis (Preliminary)
+## 8. Feature Importance Analysis
 print("\n Feature Importance Analysis")
 # Encode categorical variables
 le = LabelEncoder()
@@ -146,27 +162,55 @@ continuous_palette = continuous_palette[::-1]  # Reverse to go from light to dar
 
 plt.figure(figsize=(10, 6))
 mi_scores.plot(kind='barh', color=continuous_palette)
-plt.title("Mutual Information Scores")
 plt.xlabel("Importance Score")
-plt.ylabel("Features")
 plt.tight_layout()
 plt.show()
 
 ## 9. Advanced Visualization: Pairplot with Hue
 sample_df = df.sample(min(1000, len(df))) if len(df) > 1000 else df.copy()
-n_hues = df['Default'].nunique()
-pairplot_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, n_colors=n_hues)[::-1]
-sns.pairplot(sample_df, vars=analysis_num_cols[:5], hue='Default', palette=pairplot_palette, corner=True)
-plt.suptitle("Pairwise Relationships by Default Status", y=1.02)
+pairplot_palette = sns.cubehelix_palette(
+    start=0.5, rot=-0.5,
+    dark=0.6, light=0.3,
+    n_colors=2,
+    reverse=True
+)
+g = sns.pairplot(
+    sample_df,
+    vars=analysis_num_cols[:5],
+    hue='Default',
+    palette=pairplot_palette,
+    corner=True,
+    plot_kws={'alpha': 0.6, 's': 30, 'edgecolor': 'k'}
+)
+
+if g._legend is not None:
+    g._legend.set_title("Default", prop={'size': 20})
+    for text in g._legend.get_texts():
+        text.set_fontsize(18)
+    g._legend.set_bbox_to_anchor((1., 1.))
+ 
+plt.tight_layout()
 plt.show()
 
 ## 10. Default rate by categorical features
 for col in categorical_cols:
     plt.figure(figsize=(10, 4))
-    n_cats = df[col].nunique()
-    darker_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.5, light=0.4, n_colors=n_cats, reverse=True)
-    sns.barplot(x=col, y='Default', data=df, ci=None, palette=darker_palette)
-    plt.title(f"Default Rate by {col}")
+    default_rates = df.groupby(col)['Default'].mean().sort_values()
+    n_cats = len(default_rates)
+    darker_palette = sns.cubehelix_palette(
+        start=.5, rot=-.5, 
+        dark=0.7, light=0.3, 
+        n_colors=n_cats, 
+        reverse=True
+    )
+    sns.barplot(
+        x=col, 
+        y='Default', 
+        data=df, 
+        ci=None, 
+        palette=darker_palette,
+        order=default_rates.index 
+    )
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
