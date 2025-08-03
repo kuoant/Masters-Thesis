@@ -16,6 +16,18 @@ from scipy import stats
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import mutual_info_classif
 
+# Set global visualization style and color palette
+cubehelix_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8)
+sns.set_palette(cubehelix_palette)
+sns.set_style("whitegrid")
+
+# Apply cubehelix palette to matplotlib color cycle
+import matplotlib as mpl
+mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=cubehelix_palette)
+
+# Define cubehelix colormap for heatmaps
+cubehelix_cmap = sns.cubehelix_palette(start=.5, rot=-.5, as_cmap=True)
+
 #====================================================================================================================
 # Data Preprocessing
 #====================================================================================================================
@@ -57,7 +69,7 @@ corr_matrix = df[analysis_num_cols + ['Default']].corr(method='spearman')
 # Plot correlation heatmap
 plt.figure(figsize=(12, 8))
 mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
-sns.heatmap(corr_matrix, mask=mask, annot=True, fmt=".2f", cmap='coolwarm', center=0, vmin=-1, vmax=1)
+sns.heatmap(corr_matrix, mask=mask, annot=True, fmt=".4f", cmap=cubehelix_cmap, center=0, vmin=-1, vmax=1)
 plt.title("Feature Correlation Matrix (Spearman)")
 plt.tight_layout()
 plt.show()
@@ -128,8 +140,12 @@ mi_scores = mutual_info_classif(X, y, random_state=42)
 mi_scores = pd.Series(mi_scores, index=X.columns).sort_values(ascending=False)
 
 # Plot feature importance
+n = len(mi_scores)
+continuous_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, n_colors=n)
+continuous_palette = continuous_palette[::-1]  # Reverse to go from light to dark
+
 plt.figure(figsize=(10, 6))
-mi_scores.plot(kind='barh', color='teal')
+mi_scores.plot(kind='barh', color=continuous_palette)
 plt.title("Mutual Information Scores")
 plt.xlabel("Importance Score")
 plt.ylabel("Features")
@@ -137,20 +153,22 @@ plt.tight_layout()
 plt.show()
 
 ## 9. Advanced Visualization: Pairplot with Hue
-print("\n Pairwise Relationships")
-# Sample the data for visualization if large
 sample_df = df.sample(min(1000, len(df))) if len(df) > 1000 else df.copy()
-sns.pairplot(sample_df, vars=analysis_num_cols[:5], hue='Default', palette='viridis', corner=True)
+n_hues = df['Default'].nunique()
+pairplot_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, n_colors=n_hues)[::-1]
+sns.pairplot(sample_df, vars=analysis_num_cols[:5], hue='Default', palette=pairplot_palette, corner=True)
 plt.suptitle("Pairwise Relationships by Default Status", y=1.02)
 plt.show()
 
-## 10. Additional Important Visualizations
-# Default rate by categorical features
+## 10. Default rate by categorical features
 for col in categorical_cols:
     plt.figure(figsize=(10, 4))
-    sns.barplot(x=col, y='Default', data=df, ci=None)
+    n_cats = df[col].nunique()
+    darker_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.5, light=0.4, n_colors=n_cats, reverse=True)
+    sns.barplot(x=col, y='Default', data=df, ci=None, palette=darker_palette)
     plt.title(f"Default Rate by {col}")
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
+
 # %%
