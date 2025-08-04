@@ -1218,4 +1218,13 @@ for i in range(min(3, len(X_test['text']))):
     print(f"\n=== Analyzing Sample {i} ===")
     visualize_text_attention(trained_model, i)
 
+
+
+
+
+
+
+
+
+
 # %%
