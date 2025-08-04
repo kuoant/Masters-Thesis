@@ -6,14 +6,20 @@
 # Core Libraries
 import pandas as pd
 import numpy as np
+
+# Visualization
 import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib import cm
+custom_cmap = cm.cubehelix
 
 # Machine Learning & Preprocessing
 import xgboost as xgb
 import tensorflow as tf
 from tensorflow.keras import layers, Model
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import StandardScaler
+
+# Preprocessing & Dimensionality Reduction
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
 from sklearn.decomposition import PCA
@@ -119,7 +125,9 @@ class TwitterTransformerModel:
     
     @staticmethod
     def visualize_embeddings(embeddings, labels, class_names, title="Embeddings PCA Visualization"):
-        """Visualize embeddings with PCA and sanity checks"""
+        """Visualize embeddings with PCA using consistent Cubehelix colors"""
+        import matplotlib.colors as mcolors
+
         # Sanity check 1: Check embedding dimensions
         print(f"\nSanity Check - Embedding shape: {embeddings.shape}")
         
@@ -137,20 +145,34 @@ class TwitterTransformerModel:
         # Sanity check 3: Check PCA explained variance
         print(f"Sanity Check - PCA explained variance ratio: {pca.explained_variance_ratio_}")
         
+        # Matching cubehelix palette from barplots
+        discrete_colors = sns.cubehelix_palette(
+            start=0.5, rot=-0.5,
+            dark=0.7, light=0.3,
+            hue = 1,
+            n_colors=len(class_names),
+            reverse=True
+        )
+
         # Plot
         plt.figure(figsize=(10, 8))
-        scatter = plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], 
-                            c=labels, alpha=0.6, cmap='viridis')
-        plt.colorbar(scatter, ticks=range(len(class_names)))
-        plt.clim(-0.5, len(class_names)-0.5)
-        plt.title(title)
+        for i, class_name in enumerate(class_names):
+            idx = (labels == i)
+            plt.scatter(
+                embeddings_2d[idx, 0],
+                embeddings_2d[idx, 1],
+                color=discrete_colors[i],
+                alpha=1,
+                label=class_name,
+                edgecolor='black',
+                linewidth=0.7,
+                s=80 
+            )
+        
         plt.xlabel("PCA Component 1")
         plt.ylabel("PCA Component 2")
-        
-        # Add class names to colorbar
-        cbar = plt.gcf().axes[-1]
-        cbar.set_yticklabels(class_names)
-        
+        plt.legend(title="Classes", loc="best")
+        plt.tight_layout()
         plt.show()
 
 
