@@ -863,7 +863,7 @@ if __name__ == "__main__":
     #====================================================================================================================
     # Plot Attention Mechanism
     #====================================================================================================================
-
+    #%%
     # 9. Visualize Categorical Attention 
     def create_attention_model(original_model):
         """Create a model that outputs attention weights from the last transformer block"""
@@ -1089,7 +1089,7 @@ if __name__ == "__main__":
 
         # Find important tokens with higher threshold (more selective)
         important_indices = set()
-        threshold = 2.  # Increased from 1.5 to be more selective
+        threshold = 2.2  # Increased from 1.5 to be more selective
         
         # Only mark tokens that have at least 2 strong connections
         for i in range(len(tokens)):
