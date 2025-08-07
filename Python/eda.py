@@ -194,7 +194,30 @@ if g._legend is not None:
 plt.tight_layout()
 plt.show()
 
+
 ## 10. Default rate by categorical features
+
+# Compute default rate per combination
+combo_df = (
+    df.groupby(['HasCoSigner', 'Education'])['Default']
+    .agg(['count', 'sum'])
+    .rename(columns={'count': 'Total', 'sum': 'Defaults'})
+    .reset_index()
+)
+combo_df['DefaultRate'] = combo_df['Defaults'] / combo_df['Total']
+
+# Display as table
+print("\n Default rates by HasCoSigner and Education:")
+print(combo_df[['HasCoSigner', 'Education', 'DefaultRate']].sort_values(by='DefaultRate', ascending=False))
+
+# Visualize with heatmap
+pivot_df = combo_df.pivot(index='HasCoSigner', columns='Education', values='DefaultRate')
+plt.figure(figsize=(10, 6))
+sns.heatmap(pivot_df, annot=True, fmt=".2%", cmap=cubehelix_cmap, linewidths=0.5)
+plt.tight_layout()
+plt.show()
+
+# Default rate by each categorical features
 for col in categorical_cols:
     plt.figure(figsize=(10, 4))
     default_rates = df.groupby(col)['Default'].mean().sort_values()
@@ -216,5 +239,8 @@ for col in categorical_cols:
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
+
+
+
 
 # %%
