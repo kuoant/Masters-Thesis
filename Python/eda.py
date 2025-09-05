@@ -132,16 +132,20 @@ for col in analysis_num_cols:
 ## 6. Categorical Analysis with Chi-square
 print("\n Categorical Feature Analysis")
 categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+alpha = 0.05
+bonferroni_alpha = alpha / len(categorical_cols)
+print(f"Bonferroni-corrected alpha: {bonferroni_alpha:.6f}")
 
 for col in categorical_cols:
     contingency_table = pd.crosstab(df[col], df['Default'])
-    # Skip if any expected counts are too low for chi-square
     if (contingency_table.values < 5).sum() > 0:
         print(f"{col}: Cannot perform chi-square - some categories have low counts")
         continue
         
     chi2, p, dof, expected = stats.chi2_contingency(contingency_table)
-    print(f"{col}: Chi2={chi2:.1f}, p-value={p:.4f} {'***' if p < 0.001 else '**' if p < 0.01 else '*' if p < 0.05 else ''}")
+    
+    interpretation = "(Significant)" if p < bonferroni_alpha else "(Not significant)"
+    print(f"{col}: Chi2={chi2:.1f}, p-value={p:.4f} {interpretation}")
 
 ## 7. Outlier Detection
 print("\n Outlier Detection")
