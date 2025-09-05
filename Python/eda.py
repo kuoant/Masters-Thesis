@@ -58,12 +58,18 @@ print(f"Constant columns: {constant_cols}")
 ## 2. Statistical Normality Tests
 print("\n Normality Tests for Numerical Features")
 numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-# Remove Default from numeric cols for analysis
 analysis_num_cols = [col for col in numeric_cols if col != 'Default']
 
+alpha = 0.05
+bonferroni_alpha = alpha / len(analysis_num_cols)
+
+print(f"Bonferroni-corrected alpha: {bonferroni_alpha:.6f}")
+
+# Shapiro-Wilk test
 for col in analysis_num_cols:
-    stat, p = stats.shapiro(df[col].sample(min(5000, len(df))))  # Shapiro-Wilk test with sampling
-    print(f"{col}: Statistics={stat:.3f}, p-value={p:.3f} {'(Normal)' if p > 0.05 else '(Non-normal)'}")
+    stat, p = stats.shapiro(df[col].sample(min(5000, len(df)), random_state=42))
+    interpretation = "(Normal)" if p > bonferroni_alpha else "(Non-normal)"
+    print(f"{col}: Statistics={stat:.3f}, p-value={p:.3f} {interpretation}")
 
 ## 3. Correlation Analysis
 print("\n Correlation Analysis")
@@ -97,13 +103,20 @@ print(f"Highly correlated features (|r| > 0.7): {high_corr}")
 
 ## 4. Statistical Significance Testing
 print("\n Group Differences (Default vs Non-Default)")
+
+alpha = 0.05
+bonferroni_alpha = alpha / len(analysis_num_cols)
+print(f"Bonferroni-corrected alpha: {bonferroni_alpha:.6f}")
+
 for col in analysis_num_cols:
     group1 = df[df['Default'] == 0][col].dropna()
     group2 = df[df['Default'] == 1][col].dropna()
     
     # Mann-Whitney U test (non-parametric)
     stat, p = stats.mannwhitneyu(group1, group2)
-    print(f"{col}: U-stat={stat:.1f}, p-value={p:.4f} {'***' if p < 0.001 else '**' if p < 0.01 else '*' if p < 0.05 else ''}")
+    
+    interpretation = "(Significant)" if p < bonferroni_alpha else "(Not significant)"
+    print(f"{col}: U-stat={stat:.1f}, p-value={p:.4f} {interpretation}")
 
 ## 5. Effect Size Analysis
 print("\n Effect Size Analysis")
