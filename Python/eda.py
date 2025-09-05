@@ -46,8 +46,8 @@ df = df.drop('LoanID', axis=1)
 # Exploratory Data Analysis (EDA)
 #====================================================================================================================
 
-## 1. Advanced Data Quality Analysis
-print("\n Advanced Data Quality Checks")
+## 1. Data Quality Analysis
+print("\n Data Quality Checks")
 # Check for duplicate rows
 print(f"Duplicate rows: {df.duplicated().sum()}")
 
@@ -89,8 +89,6 @@ sns.heatmap(
 plt.xticks(rotation=45)
 plt.tight_layout()
 plt.show()
-
-
 
 # Identify high correlations
 high_corr = [(i, j) for i in corr_matrix.columns for j in corr_matrix.columns 
@@ -160,7 +158,7 @@ mi_scores = pd.Series(mi_scores, index=X.columns).sort_values(ascending=False)
 # Plot feature importance
 n = len(mi_scores)
 continuous_palette = sns.cubehelix_palette(start=.5, rot=-.5, dark=0.3, light=0.8, n_colors=n)
-continuous_palette = continuous_palette[::-1]  # Reverse to go from light to dark
+continuous_palette = continuous_palette[::-1]
 
 plt.figure(figsize=(10, 6))
 mi_scores.plot(kind='barh', color=continuous_palette)
@@ -196,8 +194,6 @@ plt.show()
 
 
 ## 10. Default rate by categorical features
-
-# Compute default rate per combination
 combo_df = (
     df.groupby(['HasCoSigner', 'Education'])['Default']
     .agg(['count', 'sum'])
