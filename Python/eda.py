@@ -201,10 +201,13 @@ if g._legend is not None:
     for text in g._legend.get_texts():
         text.set_fontsize(18)
     g._legend.set_bbox_to_anchor((1., 1.))
- 
+
+for ax in g.axes.flatten():
+    if ax is not None: 
+        ax.tick_params(axis='x', rotation=45)
+
 plt.tight_layout()
 plt.show()
-
 
 ## 10. Default rate by categorical features
 combo_df = (
