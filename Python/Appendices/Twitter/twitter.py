@@ -191,7 +191,7 @@ class BaselineXGBoost:
         train_data['text'] = train_data['text'].str.lower()
         test_data['text'] = test_data['text'].str.lower()
         
-        # Create simple character n-gram features (as a simple baseline)
+        # Create simple character n-gram features
         vectorizer = CountVectorizer(
             analyzer='char', 
             ngram_range=(2, 4),  # character 2-4 grams
@@ -274,12 +274,11 @@ def main():
     print(f"AUC Score (Transformer Only, OVR): {auc_score_tf:.4f}")
 
     embedding_model = Model(
-    inputs=model.input,  # Use model.input instead of model.inputs for single input
+    inputs=model.input,
     outputs=model.layers[-3].output
     )
     
     print("\nExtracting embeddings...")
-    # Convert the input to numpy array to avoid the warning
     X_train_text_np = X_train['text'].numpy() if hasattr(X_train['text'], 'numpy') else X_train['text']
     X_test_text_np = X_test['text'].numpy() if hasattr(X_test['text'], 'numpy') else X_test['text']
 
@@ -323,7 +322,7 @@ def main():
     
     # For comparison, visualize raw text features (from baseline)
     TwitterTransformerModel.visualize_embeddings(
-        X_test_raw.toarray(),  # Convert sparse matrix to dense
+        X_test_raw.toarray(), 
         y_test_raw,
         class_names,
         title="Baseline Raw Features (PCA)"
