@@ -73,7 +73,6 @@ for col in analysis_num_cols:
 
 ## 3. Correlation Analysis
 print("\n Correlation Analysis")
-
 # Calculate correlation matrix
 corr_matrix = df[analysis_num_cols + ['Default']].corr(method='spearman')
 
@@ -103,7 +102,6 @@ print(f"Highly correlated features (|r| > 0.7): {high_corr}")
 
 ## 4. Statistical Significance Testing
 print("\n Group Differences (Default vs Non-Default)")
-
 alpha = 0.05
 bonferroni_alpha = alpha / len(analysis_num_cols)
 print(f"Bonferroni-corrected alpha: {bonferroni_alpha:.6f}")
@@ -183,7 +181,7 @@ plt.xlabel("Importance Score")
 plt.tight_layout()
 plt.show()
 
-## 9. Advanced Visualization: Pairplot with Hue
+## 9. Pairplot with Hue
 sample_df = df.sample(min(1000, len(df))) if len(df) > 1000 else df.copy()
 pairplot_palette = sns.cubehelix_palette(
     start=0.5, rot=-0.5,
