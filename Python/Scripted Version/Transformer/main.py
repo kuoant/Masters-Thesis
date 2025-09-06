@@ -417,12 +417,12 @@ class TabTransformerModel:
     @staticmethod
     def build_model(cat_features_info, num_numerical):
         """Build the full TabTransformer model"""
-        # Input layers (unchanged)
+        # Input layers
         categorical_inputs = layers.Input(shape=(len(cat_features_info),), name='categorical_inputs')
         numerical_inputs = layers.Input(shape=(num_numerical,), name='numerical_inputs')
         text_inputs = layers.Input(shape=(OUTPUT_SEQUENCE_LENGTH,), name='text_inputs')
         
-        # Categorical processing (with improved embeddings)
+        # Categorical processing
         embedded_cats = []
         for i, (card, dim) in enumerate(cat_features_info):
             emb = layers.Embedding(
@@ -434,17 +434,17 @@ class TabTransformerModel:
         
         x_cat = layers.Concatenate(axis=1)(embedded_cats)
         
-        # Transformer blocks (improved)
+        # Transformer blocks
         for _ in range(NUM_TRANSFORMER_BLOCKS):
             x_cat = TransformerBlock(EMBED_DIM, NUM_HEADS)(x_cat)
         
         x_cat = layers.Flatten()(x_cat)
         
-        # Numerical features (with batch norm)
+        # Numerical features
         x_num = layers.BatchNormalization()(numerical_inputs)
         x_num = layers.Dense(32, activation='gelu')(x_num)
         
-        # Text processing (improved)
+        # Text processing
         x_text = layers.Embedding(
             input_dim=MAX_TOKENS, 
             output_dim=32,
@@ -453,7 +453,7 @@ class TabTransformerModel:
         x_text = TransformerBlock(32, 2)(x_text)
         x_text = layers.GlobalAveragePooling1D()(x_text)
         
-        # Feature combination (simplified but effective)
+        # Feature combination
         x = layers.Concatenate()([x_cat, x_num, x_text])
         x = layers.BatchNormalization()(x)
         x = layers.Dense(64, activation='gelu')(x)
@@ -518,12 +518,12 @@ class ModelEvaluator:
         print(f"F1 Score:  {f1:.4f}")
         print(f"AUC:       {auc:.4f}")
         
-        # Get and print confusion matrix
+        # Get confusion matrix
         cm = confusion_matrix(y_test, y_pred)
         print("\nConfusion Matrix:\n", cm)
         print("\nClassification Report:\n", classification_report(y_test, y_pred))
         
-        # Plot styled confusion matrix
+        # Plot confusion matrix
         cmap = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.85, as_cmap=True)
 
         plt.figure(figsize=(6, 5))
@@ -566,7 +566,7 @@ class ModelEvaluator:
                 outputs=model.layers[-2].output
             )
             
-            # Get embeddings using properly mapped inputs
+            # Get embeddings
             X_train_emb = embedding_model.predict(train_inputs)
             X_test_emb = embedding_model.predict(test_inputs)
             
@@ -586,7 +586,7 @@ class ModelEvaluator:
             train_cat_encoded = pd.get_dummies(train_cat_df, columns=categorical_columns)
             test_cat_encoded = pd.get_dummies(test_cat_df, columns=categorical_columns)
             
-            # Ensure test data has same columns as train (in case some categories are missing)
+            # Ensure test data has same columns as train
             missing_cols = set(train_cat_encoded.columns) - set(test_cat_encoded.columns)
             for col in missing_cols:
                 test_cat_encoded[col] = 0
@@ -836,7 +836,7 @@ if __name__ == "__main__":
         c=point_colors, alpha=0.5, edgecolor='none'
     )
 
-    # Plot centroids with bigger markers and matching colors
+    # Plot centroids
     for idx, centroid in enumerate(centroids_2d):
         plt.scatter(
             centroid[0], centroid[1],
@@ -981,7 +981,6 @@ if __name__ == "__main__":
             decoded_value = category_mappings[feat].get(int(val), f"Unknown ({val})")
             print(f"{feat}: {decoded_value}")
         
-        # Rest of the visualization code remains the same...
         attention_model = create_attention_model(model)
         
         sample = (
@@ -1000,9 +999,6 @@ if __name__ == "__main__":
     for i in range(min(3, len(X_test['categorical']))):
         print(f"\nVisualizing attention for sample {i}")
         visualize_attention(trained_model, i)
-
-
-
 
 
     # 10. Visualization of Text Attention
@@ -1087,9 +1083,9 @@ if __name__ == "__main__":
             linewidths=0.5
         )
 
-        # Find important tokens with higher threshold (more selective)
+        # Find important tokens with higher threshold
         important_indices = set()
-        threshold = 2.2  # Increased from 1.5 to be more selective
+        threshold = 2.2  # adjustable, basic threshold 2.2
         
         # Only mark tokens that have at least 2 strong connections
         for i in range(len(tokens)):
@@ -1100,12 +1096,12 @@ if __name__ == "__main__":
             if strong_connections >= 2:  # Require at least 2 strong connections
                 important_indices.add(i)
 
-        # Update label formatting (keeping font black)
+        # Label formatting
         for label in ax.get_yticklabels():
             pos = int(label.get_text().split('(')[-1].rstrip(')')) - 1
             if pos in important_indices:
                 label.set_weight('bold')
-                label.set_color('black')  # Changed from darkred to black
+                label.set_color('black')
                 label.set_fontsize(10)
             else:
                 label.set_fontsize(8)
@@ -1114,7 +1110,7 @@ if __name__ == "__main__":
             pos = int(label.get_text().split('(')[-1].rstrip(')')) - 1
             if pos in important_indices:
                 label.set_weight('bold')
-                label.set_color('black')  # Changed from darkred to black
+                label.set_color('black')  
                 label.set_fontsize(10)
             else:
                 label.set_fontsize(8)
@@ -1122,7 +1118,7 @@ if __name__ == "__main__":
         plt.title(
             f"Text Attention - Head {head_idx+1}\n"
             f"Sample {sample_idx} | Words: {len(tokens)}\n"
-            "Bold labels show strongly attended tokens (σ > 2.5 with ≥2 connections)",
+            f"Bold labels show strongly attended tokens (σ > {threshold} with ≥2 connections)",
             pad=20, fontsize=14
         )
         plt.xlabel("Key Tokens (position)", fontsize=12)
@@ -1153,13 +1149,13 @@ if __name__ == "__main__":
         # Use same custom standardizer from vectorizer
         def custom_standardize_for_comparison(text):
             text = text.lower()
-            text = re.sub(r"(\d+)%", r"\1 %", text)        # space before %
-            text = re.sub(r"[$€£]", "", text)              # remove currency
-            text = re.sub(r"[^\w\s\-%]", " ", text)        # keep alphanum, %, hyphen
-            text = re.sub(r"\s+", " ", text)               # normalize whitespace
+            text = re.sub(r"(\d+)%", r"\1 %", text)        
+            text = re.sub(r"[$€£]", "", text)              
+            text = re.sub(r"[^\w\s\-%]", " ", text)       
+            text = re.sub(r"\s+", " ", text)               
             return text.strip()
 
-        # Apply the same preprocessing
+        # Apply preprocessing
         preprocessed_original = custom_standardize_for_comparison(original_text)
         original_tokens = preprocessed_original.split()
 
@@ -1177,12 +1173,13 @@ if __name__ == "__main__":
                 break
 
         if not mismatch_found and len(original_tokens) == len(decoded_tokens):
-            print("✅ Perfect alignment!")
+            print("Perfect alignment!")
         elif not mismatch_found:
-            print("⚠️ Lengths differ but all tokens match up to the shorter length")
+            print("Lengths differ but all tokens match up to the shorter length")
         elif len(original_tokens) != len(decoded_tokens):
-            print(f"\n⚠️ Length mismatch! Original: {len(original_tokens)} vs Vectorized: {len(decoded_tokens)}")
+            print(f"Length mismatch! Original: {len(original_tokens)} vs Vectorized: {len(decoded_tokens)}")
 
+    # Visualization
     def visualize_text_attention(model, sample_idx=0):
         try:
             df = TabularDataPreprocessor.load_and_prepare_data("data/df_small_sampled.csv")
