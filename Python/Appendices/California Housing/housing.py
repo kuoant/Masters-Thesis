@@ -405,14 +405,13 @@ y_true = graph_data.y.numpy()
 
 # Compute regression line using the trained statsmodels model
 x_vals = np.linspace(pc1.min(), pc1.max(), 100)
-x_vals_const = sm.add_constant(x_vals)  # add intercept
+x_vals_const = sm.add_constant(x_vals) 
 y_vals = model_pca.predict(x_vals_const)
 
 # Plot
-color_class_0 = "#5D3A9B"  # dark purple
-color_class_1 = "#3FBFC2"  # bluish cyan
+color_class_0 = "#5D3A9B"  
+color_class_1 = "#3FBFC2"  
 
-# Plot
 plt.figure(figsize=(10, 6))
 plt.scatter(pc1, y_true, alpha=0.6, edgecolor='k', color=color_class_0, label='Data')
 plt.plot(x_vals, y_vals, color=color_class_1, linewidth=2, label='Regression Line')

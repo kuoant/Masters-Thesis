@@ -1219,7 +1219,7 @@ if __name__ == "__main__":
             print(f"\nError visualizing sample {sample_idx}:")
             traceback.print_exc()
 
-    # Run for first few samples
+    # Run for first 3 samples
     for i in range(min(3, len(X_test['text']))):
         print(f"\n=== Analyzing Sample {i} ===")
         visualize_text_attention(trained_model, i)
