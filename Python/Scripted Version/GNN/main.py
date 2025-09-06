@@ -57,7 +57,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
 FRAC = 1.0
 
 # Target mapping to get comparable results as with transformers
-FRAC = 0.01 * (FRAC)**(5.3)
+FRAC = 0.01 * (FRAC)**(5.3)  # The mapping is arbitrary but introduces a useful scale, comparable to transformers
 
 #====================================================================================================================
 # Data Preprocessing Module
