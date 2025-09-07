@@ -57,7 +57,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
 FRAC = 1.0
 
 # Target mapping to get comparable results as with transformers
-FRAC = 0.01 * (FRAC)**(5.3)  # The mapping is arbitrary but introduces a useful scale, comparable to transformers
+FRAC = 0.01 * (FRAC)**(5.3)  # The mapping is arbitrary but introduces a useful scale, which is comparable to transformers
 
 #====================================================================================================================
 # Data Preprocessing Module
@@ -536,7 +536,7 @@ if __name__ == "__main__":
     importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
     top_feats = importance_df.sort_values(by='Importance', ascending=False).head(20)
 
-    # Cubehelix color palette (reversed: light to dark)
+    # Cubehelix color palette
     cubehelix_palette = sns.cubehelix_palette(
         start=0.5, rot=-0.5, 
         dark=0.3, light=0.8, 
