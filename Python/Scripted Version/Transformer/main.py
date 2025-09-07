@@ -364,8 +364,6 @@ class TabularDataPreprocessor:
         
         vocab = text_vectorizer.get_vocabulary()
 
-        print(vocab)
-
         # Vectorize text
         X_train_text = text_vectorizer(train_data_raw['JobDescription'].fillna('').astype(str).values)
         X_test_text = text_vectorizer(test_data_raw['JobDescription'].fillna('').astype(str).values)
@@ -413,7 +411,7 @@ class TransformerBlock(layers.Layer):
         return self.layernorm2(out1 + ffn_output)
 
 class TabTransformerModel:
-    """Compatible TabTransformer with improvements"""
+    """TabTransformer for Text & Categorical Variables"""
     @staticmethod
     def build_model(cat_features_info, num_numerical):
         """Build the full TabTransformer model"""
@@ -547,7 +545,7 @@ class ModelEvaluator:
     def evaluate_xgboost(model, X_train, y_train, X_test, y_test, use_embeddings=True):
         """Fixed XGBoost evaluation with proper one-hot encoding for categoricals when not using embeddings"""
         if use_embeddings:
-            # Create input mapping from our data structure to model's expected names
+            
             train_inputs = {
                 'categorical_inputs': X_train['categorical'],
                 'numerical_inputs': X_train['numerical'],
@@ -574,7 +572,7 @@ class ModelEvaluator:
             test_features = X_test_emb
             title = "XGBoost on Transformer Embeddings"
         else:
-            # Use raw features with proper one-hot encoding for categoricals
+            # Use raw features (one-hot encoding for categoricals)
             categorical_columns = ['Education', 'EmploymentType', 'MaritalStatus',
                                 'HasMortgage', 'HasDependents', 'LoanPurpose', 'HasCoSigner']
             
@@ -803,7 +801,6 @@ if __name__ == "__main__":
     # Plot embeddings with true labels
     plot_embeddings(test_embeddings, y_test.numpy(), method='tsne')
 
-
     # 8. Visualize Centroid with PCA
     classes = np.unique(y_test)
     centroids = np.array([test_embeddings[y_test == c].mean(axis=0) for c in classes])
@@ -1001,7 +998,7 @@ if __name__ == "__main__":
         visualize_attention(trained_model, i)
 
 
-    # 10. Visualization of Text Attention
+    ## 10. Visualization of Text Attention
     def get_original_text(sample_idx):
         df = TabularDataPreprocessor.load_and_prepare_data("data/df_small_sampled.csv")
         _, test_data = train_test_split(df, test_size=TEST_SIZE, random_state=RANDOM_SEED)
@@ -1093,7 +1090,7 @@ if __name__ == "__main__":
             for j in range(len(tokens)):
                 if abs(attn_df.iloc[i,j]) > threshold and i != j:
                     strong_connections += 1
-            if strong_connections >= 2:  # Require at least 2 strong connections
+            if strong_connections >= 2:  # adjustable, require at least 2 strong connections
                 important_indices.add(i)
 
         # Label formatting
@@ -1166,7 +1163,7 @@ if __name__ == "__main__":
         mismatch_found = False
         for i, (orig, vec) in enumerate(zip(original_tokens, decoded_tokens)):
             if orig != vec:
-                print(f"\n🔍 First mismatch at position {i}:")
+                print(f"First mismatch at position {i}:")
                 print(f"Original word: '{orig}'")
                 print(f"Processed token: '{vec}'")
                 mismatch_found = True
