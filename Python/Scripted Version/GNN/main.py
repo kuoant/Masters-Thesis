@@ -162,7 +162,7 @@ class GraphBuilder:
         pos_non_lcc = {n: (random.uniform(-1, 1), random.uniform(-1, 1)) for n in non_lcc_sample}
         pos_full = {**pos_lcc, **pos_non_lcc}
         
-        # Generate cubehelix palette with reversed dark-to-light tones
+        # Generate cubehelix palette
         palette = sns.cubehelix_palette(
             start=0.5, rot=-0.5, 
             dark=0.7, light=0.3, 
