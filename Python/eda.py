@@ -38,6 +38,7 @@ cubehelix_cmap = sns.cubehelix_palette(start=.5, rot=-.5, as_cmap=True)
 
 # Load dataset
 df = pd.read_csv("Scripted Version/GNN/data/Loan_default.csv")
+print(df.head())
 
 # Remove LoanID as it's just an identifier
 df = df.drop('LoanID', axis=1)
