@@ -54,7 +54,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Parameter for controlling connections
-FRAC = 1.0
+FRAC = 0.5
 
 # Target mapping to get comparable results as with transformers
 FRAC = 0.01 * (FRAC)**(5.3)  # The mapping is arbitrary but introduces a useful scale, which is comparable to transformers
