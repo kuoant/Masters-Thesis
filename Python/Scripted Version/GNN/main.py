@@ -569,7 +569,7 @@ if __name__ == "__main__":
     embeddings_3d_sampled = embeddings_3d[sampled_indices]
     label_str_sampled = [label_str[i] for i in sampled_indices]
 
-    # Use the same cubehelix colors
+    # Use cubehelix colors
     cubehelix_colors = sns.cubehelix_palette(
         start=0.5, rot=-0.5,
         dark=0.7, light=0.3,
