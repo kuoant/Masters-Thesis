@@ -30,6 +30,8 @@
       --device=cpu
     ```
 
+---
+
 ## Credits
 
 Sample generation builds on the work of **Vitaliy Kinakh** and **Slava Voloshynovskiy**:
