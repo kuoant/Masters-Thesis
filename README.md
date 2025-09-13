@@ -1,238 +1,157 @@
-# Master's Thesis Project: Representation Learning for Downstream Statistical Modeling
+# Representation Learning for Downstream Statistical Modeling  
+### A Simulation Framework for Studying GNN and Transformer Embeddings in Gradient Boosted Tabular Classification  
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org)
-[![License](https://img.shields.io/badge/License-Academic-green.svg)](#license)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)  
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)  
+[![Frameworks](https://img.shields.io/badge/frameworks-PyTorch%20Geometric%2C%20Transformers%2C%20XGBoost-orange)]()
 
-This repository contains the complete implementation and analysis for my Master's Thesis at the University of Basel, focusing on advanced machine learning approaches (GNN, transformers & XGBoost) for tabular data analysis, with an emphasis on loan default prediction.
-
-## 🎯 Project Overview
-
-This research investigates the application of state-of-the-art machine learning models to tabular data, comparing state-of-the-art enriched with representations from modern deep learning architectures:
-
-- **Graph Neural Networks (GNNs)** for capturing graph relationships
-- **Transformer architectures** adapted for text in tabular data
-- **Diffusion Models** for synthetic data generation
-- **XGBoost** as baseline comparison
-
-### Key Research Questions
-- How do modern deep learning approaches compare to traditional methods on tabular data?
-- Can Graph Neural Networks effectively model feature relationships in loan default prediction?
-- What is the impact of different preprocessing and embedding strategies?
-
-## 📁 Repository Structure
-
-```
-Masters Thesis/
-├── Python/
-│   ├── eda.py                      # Exploratory data analysis
-│   ├── Loan_default.py             # End‑to‑end baseline / comparison script
-│   ├── environment.yaml            # Conda environment spec
-│   ├── requirements.txt            # (Pinned) Python dependencies
-│   ├── .pt_tmp/                    # Temp checkpoints / artifacts (ignored)
-│   ├── Appendices/                 # Auxiliary / side experiments
-│   │   ├── Binary Diffusion/
-│   │   ├── California Housing/
-│   │   ├── Demo/
-│   │   └── ETL Process/
-│   ├── Modular Version/            # Cleaner, pipeline‑oriented code
-│   │   ├── Modular Solution GNN/
-│   │   │   ├── data/
-│   │   │   ├── outputs/            # Metrics, figures, model weights
-│   │   │   └── src/                # Reusable modules (datasets, models, train loops)
-│   │   └── Modular Solution Transformer/
-│   │       ├── data/
-│   │       ├── outputs/
-│   │       └── src/
-│   └── Scripted Version/           # Rapid experiment scripts
-│       ├── GNN/
-│       │   ├── data/               # Raw / preprocessed loan datasets
-│       │   └── main.py             # Scripted GNN experiment
-│       └── Transformer/
-└── README.md
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.8+
-- Conda or Miniconda
-- CUDA-compatible GPU (recommended for deep learning models), but works also with CPU (by default)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/kuoant/masters-thesis.git
-   cd "Masters Thesis"
-   ```
-
-2. **Set up the environment**
-   ```bash
-   cd Python
-   conda env create -f environment.yaml
-   conda activate thesis-env
-   ```
-
-3. **Install additional dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-### Running the Analysis
-
-#### Exploratory Data Analysis
-```bash
-python eda.py
-```
-
-#### Main Loan Default Analysis
-```bash
-python Loan_default.py
-```
-
-#### GNN Experiments
-```bash
-cd "Scripted Version/GNN"
-python main.py
-```
-
-#### Modular Implementations
-```bash
-# For GNN
-cd "Modular Version/Modular Solution GNN"
-python -m src.main
-
-# For Transformer
-cd "Modular Version/Modular Solution Transformer"
-python -m src.main
-```
-
-## 📊 Dataset
-
-The primary dataset used is a loan default prediction dataset containing:
-- **Features**: Borrower demographics, loan characteristics, financial metrics
-- **Target**: Binary default indicator
-- **Size**: [Specify number of samples and features]
-- **Source**: [Specify data source if public]
-
-Additional datasets used for comparative analysis:
-- California Housing dataset (regression benchmark)
-- Synthetic datasets generated through diffusion models
-
-## 🔬 Methodology
-
-### Data Preprocessing
-- Comprehensive exploratory data analysis (EDA)
-- Statistical normality testing
-- Outlier detection and treatment
-- Feature scaling and normalization
-- Categorical encoding strategies
-
-### Model Architectures
-
-#### Graph Neural Networks
-- Node feature embedding
-- Graph construction from tabular features
-- Message passing mechanisms
-- Graph-level predictions
-
-#### Transformers for Tabular Data
-- Feature tokenization
-- Positional encoding adaptations
-- Attention mechanism analysis
-- Comparative attention visualization
-
-#### Baseline Models
-- XGBoost with hyperparameter tuning
-- Random Forest ensembles
-- Logistic regression with regularization
-
-### Evaluation Metrics
-- Classification accuracy
-- Precision, Recall, F1-score
-- AUC-ROC and AUC-PR
-- Feature importance analysis
-- Model interpretability assessment
-
-## 📈 Key Results
-
-*[This section would be populated with your actual results]*
-
-- GNN performance: [Accuracy/F1 scores]
-- Transformer performance: [Accuracy/F1 scores]
-- XGBoost baseline: [Accuracy/F1 scores]
-- Feature importance rankings
-- Computational efficiency comparison
-
-## 🛠️ Code Organization
-
-### Modular Version
-Production-ready, well-structured code with:
-- Separate data processing modules
-- Model training and evaluation pipelines
-- Configuration management
-- Comprehensive logging
-
-### Scripted Version
-Research and experimentation scripts:
-- Rapid prototyping
-- Hyperparameter exploration
-- Ablation studies
-- Visualization generation
-
-## 📚 Literature Review
-
-The `Literature/` folder contains categorized research papers covering:
-- **Diffusion Models**: Generative modeling for tabular data
-- **Embeddings**: Advanced categorical and numerical encoding
-- **GNNs**: Graph-based approaches for structured data
-- **Transformers**: Attention mechanisms in non-sequential data
-- **XGBoost**: Gradient boosting optimization techniques
-
-## 🔧 Technical Requirements
-
-**Hardware:**
-- RAM: 16GB+ recommended
-- GPU: NVIDIA GPU with 8GB+ VRAM (optional but recommended)
-- Storage: 10GB+ free space
-
-**Software:**
-- Python 3.8+
-- PyTorch 1.9+
-- PyTorch Geometric
-- Scikit-learn
-- XGBoost
-- Pandas, NumPy, Matplotlib, Seaborn
-
-## 📝 Citation
-
-If you use this code or methodology in your research, please cite:
-
-```bibtex
-@mastersthesis{kuonen2025tabular,
-  title={Advanced Machine Learning Approaches for Tabular Data Analysis},
-  author={Fabian Kuonen},
-  school={University of Basel},
-  year={2025},
-  type={Master's Thesis}
-}
-```
-
-## 🤝 Contributing
-
-This is an academic research project. For questions, suggestions, or collaboration opportunities, please reach out via email.
-
-## 📄 License
-
-This repository is for academic and research purposes only. The code and methodology are available for educational use and replication studies.
-
-## 📧 Contact
-
-**Fabian Kuonen**  
-Master's Student, University of Basel  
-For questions, please contact [fakuonen _at_ ethz.ch].
+Master Thesis — Data Science & Computational Economics  
+Chair of Econometrics & Statistics, University of Basel  
 
 ---
 
-*This repository represents ongoing research in machine learning for tabular data. Results and methodologies are subject to review and validation.*
+## 📖 Abstract
+This project investigates whether **boosting methods** such as XGBoost can be enhanced by integrating **graph neural networks (GNNs)** and **transformer-based embeddings** when simulated graph or text structures complement tabular data.  
+The hybrid framework first learns low-dimensional representations from GNNs or transformers and subsequently feeds them into an XGBoost classifier.  
 
+The empirical results show that this approach outperforms boosting models trained solely on raw features, with average performance improvements from ~0.70 to >0.85 across multiple metrics (Accuracy, Precision, Recall, F1, AUC). Robustness holds across varying levels of graph connectivity and textual noise.  
+Two applied case studies in econometrics — California Housing (GNN embeddings) and Twitter sentiment (transformer embeddings) — demonstrate the versatility of the approach in domains traditionally dominated by statistical methods.  
+
+---
+
+## 📂 Project Structure
+\`\`\`
+Python/
+│
+├── Appendices/
+│   ├── Binary Diffusion/          # Auxiliary simulation project
+│   └── ETL Process/              # Standalone ETL pipeline
+│
+├── Applications/
+│   ├── California Housing/       # GNN application on econometrics data
+│   └── Twitter/                  # Transformer application on sentiment data
+│
+├── Scripted Version/
+│   ├── GNN/                      # Graph simulation framework
+│   └── Transformer/              # Text simulation framework
+│
+├── EDA.py                        # Exploratory data analysis
+├── Proof_of_Concept.py           # Initial experiments
+├── requirements.txt
+├── environment.yml               # Main Conda environment
+└── README.md                     # This file
+\`\`\`
+
+---
+
+## ⚙️ Setup
+
+### Prerequisites
+- Python ≥ 3.8  
+- [Anaconda](https://www.anaconda.com/) (recommended)  
+
+### Installation
+Clone the repository:
+\`\`\`bash
+git clone https://github.com/<your-repo>.git
+cd <your-repo>
+\`\`\`
+
+Create the environment:
+\`\`\`bash
+conda env create -f environment.yml
+conda activate master_thesis
+\`\`\`
+
+Additional environment.yml files are provided in application subfolders for California Housing and Twitter sentiment analysis.
+
+---
+
+## 🚀 Usage
+Each module can be run independently:
+
+\`\`\`bash
+# Run graph simulation experiments
+cd Scripted\ Version/GNN
+python main.py
+
+# Run text simulation experiments
+cd Scripted\ Version/Transformer
+python main.py
+
+# Run California Housing application
+cd Applications/California\ Housing
+python housing.py
+
+# Run Twitter sentiment application
+cd Applications/Twitter
+python twitter.py
+\`\`\`
+
+The ETL project is standalone and not required for reproducing thesis experiments.
+
+---
+
+## 📊 Results (Summary)
+Hybrid models (XGBoost + embeddings) outperform baseline XGBoost:
+
+- Loan default detection: performance improved from ~0.70 → >0.85 across all metrics
+- Gains remain stable under varying graph connectivity and textual noise
+- California Housing: GNN-based embeddings improved predictive accuracy in econometric regression-to-classification setting
+- Twitter sentiment: Transformer embeddings improved sentiment classification beyond traditional text preprocessing
+
+---
+
+## 📚 Methodology
+**Representation Learning**
+- GNNs (PyTorch Geometric) for graph-structured data
+- Transformers (HuggingFace) for textual data
+
+**Downstream Model**
+- XGBoost classifier trained on concatenated raw + embedding features
+
+**Simulation Framework**
+- Generates controlled tabular, graph, and text structures
+- Allows studying robustness under varying connectivity and noise
+
+---
+
+## 📦 Datasets
+- Loan Default (Kaggle, by Nikhil) → extended with simulated graph & text structures
+- California Housing (scikit-learn dataset) → GNN-based econometric application  
+- Twitter Sentiment → Transformer-based econometric application
+
+Sample data included in repository (\`/data/\` folders).
+
+---
+
+## 📖 Citation
+If you use this code or framework, please cite as:
+
+\`\`\`bibtex
+@mastersthesis{kuonen2025representation,
+  title        = {Representation Learning for Downstream Statistical Modeling: 
+                  A Simulation Framework for Studying GNN and Transformer Embeddings 
+                  in Gradient Boosted Tabular Classification},
+  author       = {Fabian Kuonen},
+  school       = {University of Basel},
+  year         = {2025},
+  type         = {Master's Thesis}
+}
+\`\`\`
+
+**Related works:**
+- Chen, T., & Guestrin, C. (2016). XGBoost: A scalable tree boosting system. KDD.
+- Kipf, T. N., & Welling, M. (2017). Semi-Supervised Classification with Graph Convolutional Networks. ICLR.
+- Vaswani, A. et al. (2017). Attention is All You Need. NeurIPS.
+
+---
+
+## 🏛️ Acknowledgements
+This work was conducted as part of the Master's Program in Data Science & Computational Economics at the University of Basel, Chair of Econometrics & Statistics.
+
+---
+
+## 📬 Contact
+**Fabian Kuonen**  
+📧 fakuonen@ethz.ch
