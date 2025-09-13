@@ -11,10 +11,9 @@ Chair of Econometrics & Statistics, University of Basel
 ---
 
 ## 📖 Abstract
-This project investigates whether **boosting methods** such as XGBoost can be enhanced by integrating **graph neural networks (GNNs)** and **transformer-based embeddings** when simulated graph or text structures complement tabular data.  
-The hybrid framework first learns low-dimensional representations from GNNs or transformers and subsequently feeds them into an XGBoost classifier.  
+This project investigates whether **boosting methods** such as XGBoost can be enhanced by integrating **graph neural networks (GNNs)** and **transformer-based embeddings** when simulated graph or text structures complement tabular data. The hybrid framework first learns low-dimensional representations from GNNs or transformers and subsequently feeds them into an XGBoost classifier.  
 
-The empirical results show that this approach outperforms boosting models trained solely on raw features, with average performance improvements from ~0.70 to >0.85 across multiple metrics (Accuracy, Precision, Recall, F1, AUC). Robustness holds across varying levels of graph connectivity and textual noise.  
+The empirical results show that this approach outperforms boosting models trained solely on raw features, with average performance improvements from $~0.70$ to $>0.85$ across multiple metrics (Accuracy, Precision, Recall, F1, AUC). Robustness holds across varying levels of graph connectivity and textual noise.  
 Two applied case studies in econometrics — California Housing (GNN embeddings) and Twitter sentiment (transformer embeddings) — demonstrate the versatility of the approach in domains traditionally dominated by statistical methods.  
 
 ---
@@ -24,7 +23,7 @@ Two applied case studies in econometrics — California Housing (GNN embeddings)
 Python/
 │
 ├── Appendices/
-│   ├── Binary Diffusion/          # Auxiliary simulation project
+│   ├── Binary Diffusion/         # Auxiliary simulation project
 │   └── ETL Process/              # Standalone ETL pipeline
 │
 ├── Applications/
@@ -36,8 +35,8 @@ Python/
 │   └── Transformer/              # Text simulation framework
 │
 ├── EDA.py                        # Exploratory data analysis
-├── Proof_of_Concept.py           # Initial experiments
-├── requirements.txt
+├── Proof_of_Concept.py           # Initial PoC
+├── requirements.txt              # Required packages
 ├── environment.yml               # Main Conda environment
 └── README.md                     # This file
 ```
@@ -53,8 +52,8 @@ Python/
 ### Installation
 Clone the repository:
 ```bash
-git clone https://github.com/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/kuoant/Masters-Thesis.git
+cd Masters-Thesis
 ```
 
 Create the environment:
@@ -88,7 +87,7 @@ cd Applications/Twitter
 python twitter.py
 ```
 
-The ETL project is standalone and not required for reproducing thesis experiments.
+The ETL project and Binary Diffusion are standalone as well and not required for reproducing thesis experiments.
 
 ---
 
@@ -118,7 +117,7 @@ Hybrid models (XGBoost + embeddings) outperform baseline XGBoost:
 
 ## 📦 Datasets
 - Loan Default (Kaggle, by Nikhil) → extended with simulated graph & text structures
-- California Housing (scikit-learn dataset) → GNN-based econometric application  
+- California Housing → GNN-based econometric application  
 - Twitter Sentiment → Transformer-based econometric application
 
 Sample data included in repository (`/data/` folders).
