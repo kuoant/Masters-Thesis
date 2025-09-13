@@ -22,7 +22,33 @@ This research investigates the application of state-of-the-art machine learning 
 ## 📁 Repository Structure
 
 ```
-
+Masters Thesis/
+├── Python/
+│   ├── eda.py                      # Exploratory data analysis
+│   ├── Loan_default.py             # End‑to‑end baseline / comparison script
+│   ├── environment.yaml            # Conda environment spec
+│   ├── requirements.txt            # (Pinned) Python dependencies
+│   ├── .pt_tmp/                    # Temp checkpoints / artifacts (ignored)
+│   ├── Appendices/                 # Auxiliary / side experiments
+│   │   ├── Binary Diffusion/
+│   │   ├── California Housing/
+│   │   ├── Demo/
+│   │   └── ETL Process/
+│   ├── Modular Version/            # Cleaner, pipeline‑oriented code
+│   │   ├── Modular Solution GNN/
+│   │   │   ├── data/
+│   │   │   ├── outputs/            # Metrics, figures, model weights
+│   │   │   └── src/                # Reusable modules (datasets, models, train loops)
+│   │   └── Modular Solution Transformer/
+│   │       ├── data/
+│   │       ├── outputs/
+│   │       └── src/
+│   └── Scripted Version/           # Rapid experiment scripts
+│       ├── GNN/
+│       │   ├── data/               # Raw / preprocessed loan datasets
+│       │   └── main.py             # Scripted GNN experiment
+│       └── Transformer/
+└── README.md
 ```
 
 ## 🚀 Quick Start
