@@ -31,8 +31,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, roc_auc_score
 
-# Dimensionality Reduction & Evaluation
-from sklearn.manifold import TSNE
+# Dimensionality Reduction
 from sklearn.decomposition import PCA
 
 # Reproducibility
@@ -85,7 +84,7 @@ class DataPreprocessor:
 
     @staticmethod
     def preprocess_data(df):
-        # Encode categorical variables in-place (simple label encoding)
+        
         label_encoders = {}
         for col in CATEGORICAL_COLS:
             if col in df.columns:
@@ -97,8 +96,7 @@ class DataPreprocessor:
         X = df.drop(columns=['Default'])
         y = df['Default'].astype(int)
 
-        # Standardize numerical columns (fit on whole data because we will mask labels later
-        # but want consistent scaling for graph construction)
+        # Standardize numerical columns
         scaler = StandardScaler()
         X_scaled = X.copy()
         X_scaled[NUMERICAL_COLS] = scaler.fit_transform(X[NUMERICAL_COLS])
@@ -118,7 +116,7 @@ class GraphBuilder:
         default_rows = combined[combined['Default'] == 1]
         has_dependents = default_rows[default_rows['HasDependents'] == 1]
 
-        # adjacency among the subset with dependents (same logic as your original code)
+        # adjacency among the subset with dependents
         adj_matrix = pd.DataFrame(0, index=has_dependents.index, columns=has_dependents.index)
         num_rows = has_dependents.shape[0]
 
@@ -144,14 +142,11 @@ class GraphBuilder:
         if missing_node_indices:
             G.add_nodes_from(missing_node_indices)
 
-        # Because nx.from_pandas_adjacency used the subset indices, nodes that are in the
-        # adjacency were set as ints matching the original index. Isolated nodes are added
-        # directly using the original indices as node labels. This keeps mapping simple.
         return G, adj_matrix
 
     @staticmethod
     def visualize_graph(G, X, max_lcc=40, max_other=60):
-        # safe visualization that samples nodes
+        
         plt.figure(figsize=(10, 8))
 
         if G.number_of_nodes() == 0:
@@ -182,7 +177,7 @@ class GraphBuilder:
         plt.show()
 
 #====================================================================================================================
-# GraphSAGE Model Module (with label-masking during training)
+# GraphSAGE Model Module
 #====================================================================================================================
 class GraphSAGEModel(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
@@ -232,7 +227,7 @@ class GraphTrainer:
         return model
 
 #====================================================================================================================
-# Model evaluation helpers (XGBoost + utility plotting)
+# Model evaluation
 #====================================================================================================================
 class ModelEvaluator:
     @staticmethod
@@ -274,7 +269,7 @@ class ModelEvaluator:
         plt.show()
 
 #====================================================================================================================
-# Simple MLP (kept for comparison)
+# Simple MLP 
 #====================================================================================================================
 class MLPModel(nn.Module):
     def __init__(self, input_dim, hidden_dim=64, output_dim=2):
@@ -335,10 +330,10 @@ class MLPTrainer:
         return acc, cm
 
 #====================================================================================================================
-# Main Execution (Simpler flow)
+# Main Execution
 #====================================================================================================================
 if __name__ == "__main__":
-    # 1) Load & preprocess the entire dataset (we will hide labels for a small subset later)
+    # 1) Load & preprocess the entire dataset
     df = DataPreprocessor.load_and_sample_data("data/Loan_default.csv")
     X_all, y_all, scaler, label_encoders = DataPreprocessor.preprocess_data(df)
 
@@ -350,7 +345,6 @@ if __name__ == "__main__":
     GraphBuilder.visualize_graph(G, X_all)
 
     # 3) Decide which nodes will be withheld (masked) from the GNN during training.
-    #    These same indices will serve as our evaluation/test set for the downstream model.
     all_indices = list(X_all.index)
     num_mask = int(MASK_RATE * n)
     masked_indices = set(random.sample(all_indices, num_mask))
@@ -404,7 +398,7 @@ if __name__ == "__main__":
     combined_features = np.hstack((original_features_np, embeddings_np))
     ModelEvaluator.evaluate_xgb_on_splits(combined_features, labels_np, train_pos_idx, test_pos_idx, description="XGBoost (original+GNN embeddings)")
 
-    # Optional: evaluate using the raw adjacency matrix as features for comparison
+    # Evaluate using the raw adjacency matrix as features for comparison
     try:
         # align adjacency to positional order; adjacency only originally built for "dependents subset",
         # so fill missing rows/cols with zeros for full node set
@@ -433,20 +427,5 @@ if __name__ == "__main__":
         MLPTrainer.train_and_evaluate(X_train_df, y_train_ser, X_test_df, y_test_ser, input_dim=X_df.shape[1], epochs=60)
     except Exception as e:
         print("MLP training failed:", e)
-
-    # 9) TSNE visualization of embeddings colored by true label (for diagnosis)
-    try:
-        tsne = TSNE(n_components=2, perplexity=30, random_state=RANDOM_SEED)
-        emb_2d = tsne.fit_transform(embeddings_np)
-        colors = ['C0' if lab == 0 else 'C1' for lab in labels_np]
-        plt.figure(figsize=(7, 6))
-        plt.scatter(emb_2d[:, 0], emb_2d[:, 1], c=colors, alpha=0.7, s=8)
-        legend_elements = [Patch(facecolor='C0', label='No Default'), Patch(facecolor='C1', label='Default')]
-        plt.legend(handles=legend_elements)
-        plt.title('t-SNE of GNN embeddings (colored by true label)')
-        plt.tight_layout()
-        plt.show()
-    except Exception as e:
-        print('TSNE visualization failed:', e)
 
 # %%
