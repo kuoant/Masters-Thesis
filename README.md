@@ -20,7 +20,7 @@ Two applied case studies in econometrics — California Housing (GNN embeddings)
 ---
 
 ## 📂 Project Structure
-\`\`\`
+```plaintext
 Python/
 │
 ├── Appendices/
@@ -40,7 +40,6 @@ Python/
 ├── requirements.txt
 ├── environment.yml               # Main Conda environment
 └── README.md                     # This file
-\`\`\`
 
 ---
 
