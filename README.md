@@ -40,6 +40,7 @@ Python/
 ├── requirements.txt
 ├── environment.yml               # Main Conda environment
 └── README.md                     # This file
+```
 
 ---
 
