@@ -20,7 +20,7 @@ Two applied case studies in econometrics — California Housing (GNN embeddings)
 ---
 
 ## 📂 Project Structure
-```plaintext
+```
 Python/
 │
 ├── Appendices/
@@ -52,16 +52,16 @@ Python/
 
 ### Installation
 Clone the repository:
-\`\`\`bash
+```bash
 git clone https://github.com/<your-repo>.git
 cd <your-repo>
-\`\`\`
+```
 
 Create the environment:
-\`\`\`bash
+```bash
 conda env create -f environment.yml
 conda activate master_thesis
-\`\`\`
+```
 
 Additional environment.yml files are provided in application subfolders for California Housing and Twitter sentiment analysis.
 
@@ -70,7 +70,7 @@ Additional environment.yml files are provided in application subfolders for Cali
 ## 🚀 Usage
 Each module can be run independently:
 
-\`\`\`bash
+```bash
 # Run graph simulation experiments
 cd Scripted\ Version/GNN
 python main.py
@@ -86,7 +86,7 @@ python housing.py
 # Run Twitter sentiment application
 cd Applications/Twitter
 python twitter.py
-\`\`\`
+```
 
 The ETL project is standalone and not required for reproducing thesis experiments.
 
@@ -121,14 +121,14 @@ Hybrid models (XGBoost + embeddings) outperform baseline XGBoost:
 - California Housing (scikit-learn dataset) → GNN-based econometric application  
 - Twitter Sentiment → Transformer-based econometric application
 
-Sample data included in repository (\`/data/\` folders).
+Sample data included in repository (`/data/` folders).
 
 ---
 
 ## 📖 Citation
 If you use this code or framework, please cite as:
 
-\`\`\`bibtex
+```bibtex
 @mastersthesis{kuonen2025representation,
   title        = {Representation Learning for Downstream Statistical Modeling: 
                   A Simulation Framework for Studying GNN and Transformer Embeddings 
@@ -138,7 +138,7 @@ If you use this code or framework, please cite as:
   year         = {2025},
   type         = {Master's Thesis}
 }
-\`\`\`
+```
 
 **Related works:**
 - Chen, T., & Guestrin, C. (2016). XGBoost: A scalable tree boosting system. KDD.
