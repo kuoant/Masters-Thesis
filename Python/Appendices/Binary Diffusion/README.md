@@ -1,23 +1,32 @@
-1) Activate environment
+# How to run it:
 
-> conda activate binary_diffusion
+1. Activate the environment:
 
-2) Navigate to the binary diffusion folder
+    ```bash
+    conda activate binary_diffusion
+    ```
 
-> cd "/Users/fabiankuonen/binary-diffusion-tabular"
+2. Navigate to the binary diffusion folder:
 
-3) Generate new samples
+    ```bash
+    cd "/your_path_to/binary-diffusion-tabular"
+    ```
 
-> python sample.py \
-  --ckpt="/Users/fabiankuonen/Desktop/Masters Thesis/Python/Appendices/Binary Diffusion/results/adult_CFG_small/model-final.pt" \
-  --ckpt_transformation="/Users/fabiankuonen/Desktop/Masters Thesis/Python/Appendices/Binary Diffusion/results/adult_CFG_small/transformation.joblib" \
-  --n_timesteps=100 \
-  --out="/Users/fabiankuonen/Desktop/Masters Thesis/Python/Appendices/Binary Diffusion/samples" \
-  --n_samples=1000 \
-  --batch_size=64 \
-  --threshold=0.5 \
-  --strategy=target \
-  --seed=42 \
-  --guidance_scale=2.0 \
-  --target_column_name=income \
-  --device=cpu
+3. Generate new samples:
+
+    ```bash
+    python sample.py \
+      --ckpt="/your_path_to/Masters Thesis/Python/Appendices/Binary Diffusion/results/adult_CFG_small/model-final.pt" \
+      --ckpt_transformation="/your_path_to/Masters Thesis/Python/Appendices/Binary Diffusion/results/adult_CFG_small/transformation.joblib" \
+      --n_timesteps=100 \
+      --out="/your_path_to/Masters Thesis/Python/Appendices/Binary Diffusion/samples" \
+      --n_samples=1000 \
+      --batch_size=64 \
+      --threshold=0.5 \
+      --strategy=target \
+      --seed=42 \
+      --guidance_scale=2.0 \
+      --target_column_name=income \
+      --device=cpu
+    ```
+
