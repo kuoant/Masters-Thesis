@@ -1,5 +1,4 @@
-# This Environment is needed for BERT + Finetuning with LoRA
-# Unfortunetaly, some packages were not compatible, forcing the work to split into different files.
+# This Environment is needed for BERT + Finetuning with LoRA due to incompatibilities with the master-thesis env.
 
 name: hf_env
 channels:
