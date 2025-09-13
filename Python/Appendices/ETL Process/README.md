@@ -22,3 +22,14 @@
 ## Explanation:
 
 `docker-compose up` starts three services: a PostgreSQL database (`db`), a Jupyter notebook server (`jupyter`), and a database management UI (`adminer`). The PostgreSQL container uses a custom script `install.sh` to initialize the database and sets the password to `example`. The Jupyter container builds from your local `Dockerfile`, mounts your `./notebooks/` directory so you can edit and run notebooks, and exposes port `8888`. The Adminer container gives you a simple web interface to explore your database at [http://localhost:8080](http://localhost:8080). So this setup runs isolated services that communicate with each other, useful for data science and database development.
+
+---
+
+## Credits
+
+This project incorporates contributions and materials from **Ghislain Fourny**:
+
+- **Course:** *Information Systems for Engineers*  
+- **GitHub:** [https://github.com/ghislainfourny](https://github.com/ghislainfourny)  
+- **Personal page:** [https://people.inf.ethz.ch/gfourny/](https://people.inf.ethz.ch/gfourny/)
+
