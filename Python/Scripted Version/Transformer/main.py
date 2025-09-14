@@ -853,14 +853,11 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-    
-
-
 
     #====================================================================================================================
     # Plot Attention Mechanism
     #====================================================================================================================
-    #%%
+    
     # 9. Visualize Categorical Attention 
     def create_attention_model(original_model):
         """Create a model that outputs attention weights from the last transformer block"""
