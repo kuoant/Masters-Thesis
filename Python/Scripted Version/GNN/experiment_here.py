@@ -149,33 +149,49 @@ class GraphBuilder:
         return G, adj_matrix
 
     @staticmethod
-    def visualize_graph(G, X, max_lcc=40, max_other=60):
-        
-        plt.figure(figsize=(10, 8))
-
+    def visualize_graph(G, X):
+        # Sample nodes for visualization
         if G.number_of_nodes() == 0:
             print("Graph is empty; nothing to visualize.")
             return
-
-        # find largest connected component
-        lcc = max(nx.connected_components(G), key=len) if G.number_of_nodes() > 0 else set()
-        lcc_nodes = list(lcc)
-        lcc_sample = random.sample(lcc_nodes, min(len(lcc_nodes), max_lcc)) if lcc_nodes else []
-
-        other_nodes = [n for n in G.nodes if n not in lcc]
-        other_sample = random.sample(other_nodes, min(len(other_nodes), max_other)) if other_nodes else []
-
-        sample_nodes = lcc_sample + other_sample
+            
+        # Find largest connected component
+        lcc_nodes = list(max(nx.connected_components(G), key=len))
+        lcc_sample = random.sample(lcc_nodes, min(40, len(lcc_nodes)))
+        non_lcc_nodes = [n for n in G.nodes if n not in lcc_nodes]
+        non_lcc_sample = random.sample(non_lcc_nodes, min(60, len(non_lcc_nodes)))
+        sample_nodes = lcc_sample + non_lcc_sample
         subgraph = G.subgraph(sample_nodes)
-
-        # positions
-        pos = nx.spring_layout(subgraph, seed=RANDOM_SEED)
-
-        # color by whether in LCC
-        node_colors = ["C0" if n in lcc_sample else "C1" for n in subgraph.nodes()]
-
-        nx.draw(subgraph, pos=pos, node_color=node_colors, with_labels=False, node_size=120, edge_color='gray')
-        legend_elements = [Patch(facecolor='C0', label='LCC'), Patch(facecolor='C1', label='Other')]
+        
+        # Create positions
+        pos_lcc = nx.kamada_kawai_layout(subgraph.subgraph(lcc_sample), weight=None)
+        pos_non_lcc = {n: (random.uniform(-1, 1), random.uniform(-1, 1)) for n in non_lcc_sample}
+        pos_full = {**pos_lcc, **pos_non_lcc}
+        
+        # Generate cubehelix palette
+        palette = sns.cubehelix_palette(
+            start=0.5, rot=-0.5, 
+            dark=0.7, light=0.3, 
+            n_colors=2, 
+            reverse=True
+        )
+        
+        # Assign colors
+        node_colors = [palette[0] if n in lcc_sample else palette[1] for n in subgraph.nodes]
+        
+        # Plot
+        plt.figure(figsize=(10, 8))
+        nx.draw(
+            subgraph, pos=pos_full,
+            with_labels=False, node_size=400,
+            node_color=node_colors, edge_color='gray', width=1.0
+        )
+        
+        # Add legend
+        legend_elements = [
+            Patch(facecolor=palette[0], label='LCC'),
+            Patch(facecolor=palette[1], label='Other')
+        ]
         plt.legend(handles=legend_elements)
         plt.title("Graph (sampled nodes)")
         plt.show()
