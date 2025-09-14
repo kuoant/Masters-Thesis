@@ -37,10 +37,9 @@ import matplotlib.cm as cm
 import seaborn as sns
 import matplotlib.patches as mpatches
 
-# Machine Learning Models
+# Downstream ML model
 import xgboost as xgb
     
-
 # Constants
 RANDOM_SEED = 42
 TEST_SIZE = 0.2
@@ -50,7 +49,7 @@ EMBED_DIM = 32
 NUM_HEADS = 2
 NUM_TRANSFORMER_BLOCKS = 2
 
-# Parameter for Job Description Simulation
+# Parameter for job description simulation
 FRAC = 1
 
 #====================================================================================================================
@@ -298,8 +297,6 @@ class TabularDataPreprocessor:
             improving satisfaction scores from 88% to 96% through staff empowerment 
             initiatives."""
         ]
-
-
         
         # Create risky job descriptions for high-risk cases
         risky_pool = df[(df['Default'] == 1) & (df['HasDependents'] == 'Yes')]
@@ -390,7 +387,6 @@ class TabularDataPreprocessor:
 # Model Building Module
 #====================================================================================================================
 class TransformerBlock(layers.Layer):
-    """Improved Transformer block with better compatibility"""
     def __init__(self, embed_dim, num_heads):
         super().__init__()
         self.att = layers.MultiHeadAttention(
@@ -518,8 +514,8 @@ class ModelEvaluator:
         
         # Get confusion matrix
         cm = confusion_matrix(y_test, y_pred)
-        print("\nConfusion Matrix:\n", cm)
-        print("\nClassification Report:\n", classification_report(y_test, y_pred))
+        print("Confusion Matrix:\n", cm)
+        print("Classification Report:\n", classification_report(y_test, y_pred))
         
         # Plot confusion matrix
         cmap = sns.cubehelix_palette(start=0.5, rot=-0.5, dark=0.3, light=0.85, as_cmap=True)
@@ -543,7 +539,6 @@ class ModelEvaluator:
     
     @staticmethod
     def evaluate_xgboost(model, X_train, y_train, X_test, y_test, use_embeddings=True):
-        """Fixed XGBoost evaluation with proper one-hot encoding for categoricals when not using embeddings"""
         if use_embeddings:
             
             train_inputs = {
@@ -620,7 +615,7 @@ class ModelEvaluator:
         auc = roc_auc_score(y_test.numpy(), y_probs)
         print(f"XGBoost AUC: {auc:.4f}")
 
-        print("\nClassification Report:\n", classification_report(y_test, y_pred))
+        print("Classification Report:\n", classification_report(y_test, y_pred))
 
         print(f"{title} Accuracy: {acc:.4f}")
         return acc
@@ -665,7 +660,7 @@ class MLPModel:
 class MLPTrainer:
     @staticmethod
     def train_and_evaluate(X_train, y_train, X_test, y_test, epochs=100):
-        """Train and evaluate MLP on raw features (no embeddings)"""
+        """Train and evaluate MLP on raw features"""
 
         # 1. Prepare features
         X_train_combined = np.concatenate([
@@ -991,7 +986,7 @@ if __name__ == "__main__":
 
     # Visualize for first 3 samples
     for i in range(min(3, len(X_test['categorical']))):
-        print(f"\nVisualizing attention for sample {i}")
+        print(f"Visualizing attention for sample {i}")
         visualize_attention(trained_model, i)
 
 
@@ -1210,7 +1205,7 @@ if __name__ == "__main__":
                 )
 
         except Exception as e:
-            print(f"\nError visualizing sample {sample_idx}:")
+            print(f"Error visualizing sample {sample_idx}:")
             traceback.print_exc()
 
     # Run for first 3 samples
