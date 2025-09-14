@@ -12,6 +12,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import seaborn as sns
+from matplotlib.colors import rgb2hex
+import plotly.express as px
+import plotly.io as pio
 
 # Network Analysis & Graph Conversion
 import networkx as nx
@@ -34,9 +37,6 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 # Dimensionality Reduction
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from matplotlib.colors import rgb2hex
-import plotly.express as px
-import plotly.io as pio
 
 # Reproducibility
 RANDOM_SEED = 42
@@ -54,7 +54,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
 
 # Graph connection parameter
 FRAC = 0.75
-FRAC = 0.01 * (FRAC)**(5.3)
+FRAC = 0.01 * (FRAC)**(5.3)  # Produce mapping, so that FRAC is comparable to the parameter used with transformers
 
 # Masking rate: proportion of nodes whose labels are hidden from the GNN
 MASK_RATE = 0.2
@@ -63,6 +63,7 @@ MASK_RATE = 0.2
 # Data Preprocessing Module
 #====================================================================================================================
 class DataPreprocessor:
+
     @staticmethod
     def load_and_sample_data(filepath):
         df = pd.read_csv(filepath)
@@ -80,7 +81,7 @@ class DataPreprocessor:
         df_small = pd.concat([df_non_default_sampled, df_default_sampled])
         df_small = df_small.sample(frac=1, random_state=RANDOM_SEED).reset_index(drop=True)
 
-        # drop LoanID if present
+        # Drop LoanID, since it contains no information for modeling
         if 'LoanID' in df_small.columns:
             df_small = df_small.drop(columns=['LoanID'])
 
@@ -89,6 +90,7 @@ class DataPreprocessor:
     @staticmethod
     def preprocess_data(df):
         
+        # Use label encoder for categorical variables
         label_encoders = {}
         for col in CATEGORICAL_COLS:
             if col in df.columns:
@@ -96,7 +98,7 @@ class DataPreprocessor:
                 df[col] = le.fit_transform(df[col].astype(str))
                 label_encoders[col] = le
 
-        # Features / labels
+        # Split features / labels
         X = df.drop(columns=['Default'])
         y = df['Default'].astype(int)
 
@@ -162,7 +164,7 @@ class GraphBuilder:
         sample_nodes = lcc_sample + non_lcc_sample
         subgraph = G.subgraph(sample_nodes)
         
-        # Create positions
+        # Create positions of subgraph
         pos_lcc = nx.kamada_kawai_layout(subgraph.subgraph(lcc_sample), weight=None)
         pos_non_lcc = {n: (random.uniform(-1, 1), random.uniform(-1, 1)) for n in non_lcc_sample}
         pos_full = {**pos_lcc, **pos_non_lcc}
@@ -188,7 +190,7 @@ class GraphBuilder:
         
         # Add legend
         legend_elements = [
-            Patch(facecolor=palette[0], label='LCC'),
+            Patch(facecolor=palette[0], label='Default with Dependents'),
             Patch(facecolor=palette[1], label='Other')
         ]
         plt.legend(handles=legend_elements)
