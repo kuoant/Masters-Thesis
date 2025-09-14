@@ -125,11 +125,11 @@ class TwitterTransformerModel:
     
     @staticmethod
     def visualize_embeddings(embeddings, labels, class_names, title="Embeddings PCA Visualization"):
-        """Visualize embeddings with PCA using consistent Cubehelix colors"""
+        """Visualize embeddings with PCA"""
         import matplotlib.colors as mcolors
 
         # Sanity check 1: Check embedding dimensions
-        print(f"\nSanity Check - Embedding shape: {embeddings.shape}")
+        print(f"Sanity Check - Embedding shape: {embeddings.shape}")
         
         # Sanity check 2: Check for NaN values
         print(f"Sanity Check - NaN values: {np.isnan(embeddings).sum()}")
@@ -145,7 +145,7 @@ class TwitterTransformerModel:
         # Sanity check 3: Check PCA explained variance
         print(f"Sanity Check - PCA explained variance ratio: {pca.explained_variance_ratio_}")
         
-        # Matching cubehelix palette from barplots
+        # Colors
         discrete_colors = sns.cubehelix_palette(
             start=0.5, rot=-0.5,
             dark=0.7, light=0.3,
@@ -278,13 +278,12 @@ def main():
     outputs=model.layers[-3].output
     )
     
-    print("\nExtracting embeddings...")
+    print("\nExtract embeddings...")
     X_train_text_np = X_train['text'].numpy() if hasattr(X_train['text'], 'numpy') else X_train['text']
     X_test_text_np = X_test['text'].numpy() if hasattr(X_test['text'], 'numpy') else X_test['text']
 
     X_train_emb = embedding_model.predict(X_train_text_np)
     X_test_emb = embedding_model.predict(X_test_text_np)
-
     
     print("\nTraining XGBoost on embeddings...")
     xgb_emb = xgb.XGBClassifier(
@@ -327,6 +326,10 @@ def main():
         class_names,
         title="Baseline Raw Features (PCA)"
     )
+
+    #====================================================================================================================
+    # Number of Parameters Analysis
+    #====================================================================================================================
 
     # 1. Transformer model parameters
     print("\nTransformer Model Summary:")
