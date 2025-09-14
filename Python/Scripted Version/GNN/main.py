@@ -554,7 +554,7 @@ if __name__ == "__main__":
     except Exception as e:
         print("Skipping adjacency-based evaluation due to:", e)
 
-    # 8) Quick MLP comparison using the same train/test split (original features only)
+    # 8) MLP comparison using the same train/test split (original features only)
     X_df = pd.DataFrame(original_features_np, index=graph_node_order)
     y_ser = pd.Series(labels_np, index=graph_node_order)
     X_train_df = X_df.iloc[train_pos_idx]
