@@ -44,7 +44,7 @@ np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 torch.manual_seed(RANDOM_SEED)
 
-# Sampling sizes (kept as in your original code)
+# Sampling sizes
 SAMPLE_SIZES = {'non_default': 7000, 'default': 3000}
 TEST_SIZE = 0.2
 CATEGORICAL_COLS = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage', 
@@ -52,7 +52,7 @@ CATEGORICAL_COLS = ['Education', 'EmploymentType', 'MaritalStatus', 'HasMortgage
 NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore', 
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
-# Graph connection parameter (kept but overridden if desired)
+# Graph connection parameter
 FRAC = 1
 FRAC = 0.01 * (FRAC)**(5.3)
 
@@ -139,7 +139,6 @@ class GraphBuilder:
         # create networkx graph from adjacency among the dependents subset
         G = nx.from_pandas_adjacency(adj_matrix)
 
-        # ensure all original node indices appear in the graph (as isolated nodes if needed)
         all_node_indices = X.index
         existing_node_indices = set(G.nodes)
         missing_node_indices = set(all_node_indices) - existing_node_indices
@@ -468,6 +467,7 @@ class MLPTrainer:
 # Main Execution
 #====================================================================================================================
 if __name__ == "__main__":
+
     # 1) Load & preprocess the entire dataset
     df = DataPreprocessor.load_and_sample_data("data/Loan_default.csv")
     X_all, y_all, scaler, label_encoders = DataPreprocessor.preprocess_data(df)
@@ -475,7 +475,7 @@ if __name__ == "__main__":
     n = len(X_all)
     print(f"Loaded data with {n} nodes")
 
-    # 2) Build graph using the original logic but on the full dataset
+    # 2) Build graph
     G, adj_matrix = GraphBuilder.build_graph(X_all, y_all)
     GraphBuilder.visualize_graph(G, X_all)
 
