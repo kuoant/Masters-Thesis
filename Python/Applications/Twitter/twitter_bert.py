@@ -88,7 +88,7 @@ trainer = Trainer(
     compute_metrics=compute_metrics
 )
 
-# Train
+# Train BERT
 trainer.train()
 
 #====================================================================================================================
@@ -99,7 +99,7 @@ trainer.train()
 preds = trainer.predict(test_ds)
 y_true = test_df['label'].values
 y_pred = np.argmax(preds.predictions, axis=1)
-print("\nBERT Fine-Tuned Evaluation:")
+print("BERT Fine-Tuned Evaluation:")
 print(classification_report(y_true, y_pred, target_names=class_names))
 
 
