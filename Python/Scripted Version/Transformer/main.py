@@ -72,8 +72,8 @@ class VisualizationUtils:
             annot=annot,
             fmt=fmt,
             cmap=cmap,
-            xticklabels=xlabels if xlabels is not None else False,  # Fix here
-            yticklabels=ylabels if ylabels is not None else False,  # Fix here
+            xticklabels=xlabels if xlabels is not None else False,  
+            yticklabels=ylabels if ylabels is not None else False, 
             **kwargs
         )
         plt.title(title)
@@ -919,7 +919,7 @@ class AttentionVisualizer:
 
         # Find important tokens
         important_indices = set()
-        threshold = 2.2
+        threshold = 2.2  # can be adjusted
         
         for i in range(len(tokens)):
             strong_connections = 0
