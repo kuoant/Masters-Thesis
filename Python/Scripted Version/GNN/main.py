@@ -53,7 +53,7 @@ NUMERICAL_COLS = ['Age', 'Income', 'LoanAmount', 'CreditScore',
                   'MonthsEmployed', 'NumCreditLines', 'InterestRate', 'DTIRatio']
 
 # Graph connection parameter
-FRAC = 1
+FRAC = 0.75
 FRAC = 0.01 * (FRAC)**(5.3)
 
 # Masking rate: proportion of nodes whose labels are hidden from the GNN
@@ -456,6 +456,7 @@ class MLPTrainer:
             cm = confusion_matrix(y_test.cpu().numpy(), preds)
             print(f"MLP Test Accuracy: {acc:.4f}")
             ModelEvaluator.plot_confusion_matrix(cm, "MLP Confusion Matrix")
+            print(classification_report(y_test, preds, target_names=["No Default", "Default"]))
             try:
                 auc = roc_auc_score(y_test.cpu().numpy(), probs)
                 print(f"MLP Test AUC: {auc:.4f}")
