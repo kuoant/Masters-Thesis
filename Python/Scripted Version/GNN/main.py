@@ -33,6 +33,10 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 
 # Dimensionality Reduction
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from matplotlib.colors import rgb2hex
+import plotly.express as px
+import plotly.io as pio
 
 # Reproducibility
 RANDOM_SEED = 42
@@ -268,6 +272,121 @@ class ModelEvaluator:
         plt.tight_layout()
         plt.show()
 
+
+    @staticmethod
+    def visualize_embeddings(embeddings_np, labels_np, title_suffix=""):
+        """Create t-SNE visualization of embeddings"""
+        tsne = TSNE(n_components=2, perplexity=30, random_state=RANDOM_SEED)
+        emb_2d = tsne.fit_transform(embeddings_np)
+        
+        cubehelix_colors = sns.cubehelix_palette(
+            start=0.5, rot=-0.5, 
+            dark=0.7, light=0.3, 
+            n_colors=2, 
+            reverse=False
+        )
+        label_to_color = {0: cubehelix_colors[0], 1: cubehelix_colors[1]}
+        point_colors = [label_to_color[label] for label in labels_np]
+
+        plt.figure(figsize=(8, 6))
+        plt.scatter(
+            emb_2d[:, 0], emb_2d[:, 1],
+            c=point_colors, alpha=0.7, edgecolor='none'
+        )
+        plt.xlabel("TSNE-1")
+        plt.ylabel("TSNE-2")
+        
+        legend_elements = [
+            Patch(facecolor=cubehelix_colors[0], label='Class 0'),
+            Patch(facecolor=cubehelix_colors[1], label='Class 1')
+        ]
+        plt.legend(handles=legend_elements, title="Default", loc='best')
+        plt.grid(True)
+        plt.title(f"t-SNE Visualization of GNN Embeddings {title_suffix}")
+        plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def visualize_feature_importance(original_features_np, embeddings_np, labels_np):
+        """Visualize feature importance of combined features"""
+        combined_features = np.hstack((original_features_np, embeddings_np))
+        
+        xgb_model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=RANDOM_SEED)
+        xgb_model.fit(combined_features, labels_np)
+
+        importances = xgb_model.feature_importances_
+        feature_names = [f'orig_{i}' for i in range(original_features_np.shape[1])] + [f'emb_{i}' for i in range(embeddings_np.shape[1])]
+
+        importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+        top_feats = importance_df.sort_values(by='Importance', ascending=False).head(20)
+
+        # Cubehelix color palette
+        cubehelix_palette = sns.cubehelix_palette(
+            start=0.5, rot=-0.5, 
+            dark=0.3, light=0.8, 
+            n_colors=20,
+            reverse=True
+        )
+
+        plt.figure(figsize=(10, 6))
+        sns.barplot(data=top_feats, x='Importance', y='Feature', palette=cubehelix_palette)
+        plt.title("Top 20 Feature Importances (Original + GNN Embeddings)")
+        plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def visualize_3d_pca(embeddings_np, labels_np):
+        """Create 3D PCA visualization of embeddings"""
+        pca = PCA(n_components=3, random_state=42)
+        embeddings_3d = pca.fit_transform(embeddings_np)
+
+        # Convert labels
+        label_str = ['Default' if label == 1 else 'Non-default' for label in labels_np]
+
+        # Sample points for better visualization
+        sample_size = 1000
+        total_points = len(label_str)
+
+        if total_points > sample_size:
+            sampled_indices = random.sample(range(total_points), sample_size)
+        else:
+            sampled_indices = list(range(total_points))
+
+        embeddings_3d_sampled = embeddings_3d[sampled_indices]
+        label_str_sampled = [label_str[i] for i in sampled_indices]
+
+        # Use cubehelix colors
+        cubehelix_colors = sns.cubehelix_palette(
+            start=0.5, rot=-0.5,
+            dark=0.7, light=0.3,
+            n_colors=2, reverse=True
+        )
+
+        # Convert RGB to hex using matplotlib
+        default_hex = rgb2hex(cubehelix_colors[0])
+        nondefault_hex = rgb2hex(cubehelix_colors[1])
+
+        # Plotly color map
+        color_map = {
+            'Default': default_hex,
+            'Non-default': nondefault_hex
+        }
+
+        # Plot
+        fig = px.scatter_3d(
+            x=embeddings_3d_sampled[:, 0],
+            y=embeddings_3d_sampled[:, 1],
+            z=embeddings_3d_sampled[:, 2],
+            color=label_str_sampled,
+            labels={'x': 'PC1', 'y': 'PC2', 'z': 'PC3', 'color': 'Label'},
+            title='3D PCA of GNN Embeddings',
+            opacity=1.0,
+            color_discrete_map=color_map
+        )
+
+        pio.renderers.default = 'browser'
+        fig.show()
+
 #====================================================================================================================
 # Simple MLP 
 #====================================================================================================================
@@ -385,6 +504,7 @@ if __name__ == "__main__":
     # 7) Downstream supervised evaluation: train on non-masked nodes, test on masked nodes
     #    - Baseline: original features only
     #    - GNN-enhanced: original features + embeddings
+    #    - Comparison: original features + adjacency matrix
 
     # indices in positional order
     pos_indices = np.arange(len(graph_node_order))
@@ -427,5 +547,20 @@ if __name__ == "__main__":
         MLPTrainer.train_and_evaluate(X_train_df, y_train_ser, X_test_df, y_test_ser, input_dim=X_df.shape[1], epochs=60)
     except Exception as e:
         print("MLP training failed:", e)
+
+    # 9) Use the trained GNN for visualization
+    trained_model.eval()
+    with torch.no_grad():
+        hidden = trained_model.conv1(data.x, data.edge_index)
+        hidden = F.relu(hidden)
+        embeddings_np = hidden.cpu().numpy()
+
+    original_features_np = data.x.cpu().numpy()
+    labels_np = data.y.cpu().numpy()
+
+    print("Visualizing GNN embeddings...")
+    ModelEvaluator.visualize_embeddings(embeddings_np, labels_np)
+    ModelEvaluator.visualize_feature_importance(original_features_np, embeddings_np, labels_np)
+    ModelEvaluator.visualize_3d_pca(embeddings_np, labels_np)
 
 # %%
