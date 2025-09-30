@@ -5,8 +5,9 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)  
 [![Frameworks](https://img.shields.io/badge/frameworks-PyTorch%20Geometric%2C%20Transformers%2C%20XGBoost-orange)]()
 
-Master Thesis — Data Science & Computational Economics  
+Master's Thesis — Data Science & Computational Economics  
 Chair of Econometrics & Statistics, University of Basel  
+Supervised by: Prof. Christian Kleiber
 
 ---
 
@@ -132,7 +133,7 @@ If you use this code or framework, please cite as:
   title        = {Representation Learning for Downstream Statistical Modeling: 
                   A Simulation Framework for Studying GNN and Transformer Embeddings 
                   in Gradient Boosted Tabular Classification},
-  author       = {Fabian Kuonen},
+  author       = {Fabian Gabriel Kuonen},
   school       = {University of Basel},
   year         = {2025},
   type         = {Master's Thesis}
@@ -147,7 +148,7 @@ If you use this code or framework, please cite as:
 ---
 
 ## 🏛️ Acknowledgements
-This work was conducted as part of the Master's Program in Data Science & Computational Economics at the University of Basel, Chair of Econometrics & Statistics.
+This work was conducted as part of the Master's Program in Data Science & Computational Economics at the University of Basel, Chair of Econometrics & Statistics, supervised by Prof. Christian Kleiber.
 
 ---
 
