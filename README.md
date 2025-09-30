@@ -154,4 +154,4 @@ This work was conducted as part of the Master's Program in Data Science & Comput
 
 ## 📬 Contact
 **Fabian Kuonen**  
-📧 fakuonen@ethz.ch
+📧 fakuonen__at__ethz.ch
